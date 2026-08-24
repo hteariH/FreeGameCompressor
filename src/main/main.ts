@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,6 +9,11 @@ import { getDriveInfos } from './utils/disk';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Set App User Model ID for Windows Taskbar icon grouping and pinning
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.antigravity.freegamecompressor');
+}
 
 let mainWindow: BrowserWindow | null = null;
 const engineManager = new CompressionEngineManager();
@@ -54,15 +59,34 @@ function saveSettings(settings: AppSettings) {
   } catch {}
 }
 
+function getAppIcon() {
+  const possiblePaths = [
+    path.join(__dirname, '../build/icon.ico'),
+    path.join(__dirname, '../build/icon.png'),
+    path.join(__dirname, 'icon.ico'),
+    path.join(__dirname, 'icon.png'),
+    path.join(process.resourcesPath, 'build', 'icon.ico'),
+    path.join(process.resourcesPath, 'build', 'icon.png'),
+    path.join(process.resourcesPath, 'icon.ico'),
+    path.join(process.resourcesPath, 'icon.png'),
+  ];
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return nativeImage.createFromPath(p);
+    }
+  }
+  return undefined;
+}
+
 function createWindow() {
-  const iconPath = path.join(__dirname, '../build/icon.png');
+  const appIcon = getAppIcon();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 960,
     minHeight: 640,
     frame: false,
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: appIcon,
     backgroundColor: '#0a0d14',
     webPreferences: {
       preload: fs.existsSync(path.join(__dirname, 'preload.js'))

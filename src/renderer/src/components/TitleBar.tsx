@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Minus, Square, Copy, X } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export const TitleBar: React.FC = () => {
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
@@ -39,8 +40,8 @@ export const TitleBar: React.FC = () => {
         className="flex items-center gap-2.5"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        <div className="w-5 h-5 rounded-md overflow-hidden flex items-center justify-center shadow-md shadow-blue-500/20 border border-border/80">
-          <img src="/logo.png" alt="FreeGameCompressor" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+        <div className="w-5 h-5 rounded-md overflow-hidden flex items-center justify-center shadow-md shadow-cyan-500/20 border border-border/80 bg-surface">
+          <img src={logoImg} alt="FreeGameCompressor" className="w-full h-full object-cover" />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">

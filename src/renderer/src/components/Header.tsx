@@ -12,6 +12,7 @@ import {
   HardDrive
 } from 'lucide-react';
 import type { Platform } from '../types';
+import logoImg from '../assets/logo.png';
 
 interface HeaderProps {
   searchQuery: string;
@@ -51,8 +52,8 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Top row: Brand & Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-cyan-500/25 border border-border">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg shadow-cyan-500/25 border border-border bg-surface">
+            <img src={logoImg} alt="FreeGameCompressor Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-cyan-300 to-indigo-300 bg-clip-text text-transparent">

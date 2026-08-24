@@ -6,6 +6,8 @@ directories:
 files:
   - dist
   - dist-electron
+  - build/icon.ico
+  - build/icon.png
 win:
   icon: build/icon.ico
   target:
