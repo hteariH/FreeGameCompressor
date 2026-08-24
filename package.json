@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Cross-platform Game Discovery & Transparent Compression Tool for Windows & Linux",
-  "main": "dist-electron/main.mjs",
+  "main": "dist-electron/main.js",
   "author": "Antigravity",
   "license": "MIT",
   "scripts": {

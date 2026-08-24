@@ -15,6 +15,9 @@ win:
       arch:
         - x64
   requestedExecutionLevel: asInvoker
+  signAndEditExecutable: false
+  sign: null
+  forceCodeSigning: false
 linux:
   target:
     - target: AppImage
