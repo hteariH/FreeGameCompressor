@@ -55,13 +55,15 @@ function saveSettings(settings: AppSettings) {
 }
 
 function createWindow() {
+  const iconPath = path.join(__dirname, '../build/icon.png');
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
     minWidth: 960,
     minHeight: 640,
+    frame: false,
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     backgroundColor: '#0a0d14',
-    titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: fs.existsSync(path.join(__dirname, 'preload.js'))
         ? path.join(__dirname, 'preload.js')
@@ -92,6 +94,35 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handler Registrations
+
+ipcMain.handle('window-minimize', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.minimize();
+  }
+});
+
+ipcMain.handle('window-maximize', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+      return false;
+    } else {
+      mainWindow.maximize();
+      return true;
+    }
+  }
+  return false;
+});
+
+ipcMain.handle('window-close', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.close();
+  }
+});
+
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false;
+});
 
 ipcMain.handle('get-platform', () => {
   return process.platform;

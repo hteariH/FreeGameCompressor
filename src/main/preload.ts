@@ -28,6 +28,12 @@ export const api = {
   getPlatform: (): Promise<string> => ipcRenderer.invoke('get-platform'),
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: AppSettings): Promise<void> => ipcRenderer.invoke('save-settings', settings),
+
+  // Window Controls
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke('window-minimize'),
+  maximizeWindow: (): Promise<boolean> => ipcRenderer.invoke('window-maximize'),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke('window-close'),
+  isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window-is-maximized'),
 };
 
 contextBridge.exposeInMainWorld('api', api);

@@ -91,6 +91,12 @@ export interface ElectronAPI {
   getPlatform: () => Promise<string>;
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;
+  
+  // Window Controls
+  minimizeWindow: () => Promise<void>;
+  maximizeWindow: () => Promise<boolean>;
+  closeWindow: () => Promise<void>;
+  isMaximized: () => Promise<boolean>;
 }
 
 declare global {

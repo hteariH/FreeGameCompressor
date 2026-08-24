@@ -7,6 +7,7 @@ import type {
   CompressionProgress, 
   CompressionAlgorithm 
 } from './types';
+import { TitleBar } from './components/TitleBar';
 import { Header } from './components/Header';
 import { StatsOverview } from './components/StatsOverview';
 import { GameGrid } from './components/GameGrid';
@@ -252,6 +253,9 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-background text-slate-100 overflow-hidden select-none">
+      {/* Custom Frameless Window TitleBar */}
+      <TitleBar />
+
       {/* Top Navigation Bar */}
       <Header
         searchQuery={searchQuery}
