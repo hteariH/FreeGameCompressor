@@ -7,7 +7,6 @@ node_modules/
 dist/
 dist-electron/
 release/
-build/
 
 # Logs
 npm-debug.log*
