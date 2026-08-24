@@ -48,7 +48,7 @@ export const TitleBar: React.FC = () => {
             FreeGameCompressor
           </span>
           <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-cyan-300 border border-border">
-            v1.0.0
+            v1.1.0
           </span>
         </div>
       </div>
