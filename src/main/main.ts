@@ -92,11 +92,11 @@ function getAppIcon() {
 function createWindow() {
   const appIcon = getAppIcon();
   mainWindow = new BrowserWindow({
+    title: 'FreeGameCompressor',
     width: 1280,
     height: 840,
     minWidth: 960,
     minHeight: 640,
-    frame: false,
     icon: appIcon,
     backgroundColor: '#0a0d14',
     webPreferences: {
