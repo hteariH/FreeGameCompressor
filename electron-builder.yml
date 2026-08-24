@@ -19,6 +19,7 @@ win:
   sign: null
   forceCodeSigning: false
 linux:
+  maintainer: "hteariH <hteari@users.noreply.github.com>"
   target:
     - target: AppImage
       arch:

@@ -40,9 +40,8 @@ jobs:
         run: npm run build
 
       - name: Package Windows binaries
-        run: npx electron-builder --win --x64
+        run: npx electron-builder --win --x64 --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload Windows Artifacts
@@ -79,9 +78,8 @@ jobs:
         run: npm run build
 
       - name: Package Linux binaries (AppImage, deb, tar.gz)
-        run: npx electron-builder --linux AppImage deb tar.gz --x64
+        run: npx electron-builder --linux AppImage deb tar.gz --x64 --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload Linux Artifacts
