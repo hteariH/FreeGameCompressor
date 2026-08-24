@@ -7,6 +7,7 @@ files:
   - dist
   - dist-electron
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -19,6 +20,7 @@ win:
   sign: null
   forceCodeSigning: false
 linux:
+  icon: build/icon.png
   maintainer: "hteariH <aberkunsky@gmail.com>"
   target:
     - target: AppImage
