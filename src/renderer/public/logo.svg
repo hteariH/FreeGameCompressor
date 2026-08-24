@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Card -->
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="8" />
+  
+  <!-- Outer Glow Hexagon/Shield -->
+  <path d="M256 64 L416 144 L416 320 L256 432 L96 320 L96 144 Z" 
+        fill="none" stroke="url(#neonGrad)" stroke-width="12" stroke-linejoin="round" opacity="0.6" filter="url(#glow)" />
+        
+  <!-- Controller Outline -->
+  <path d="M160 210 C160 180, 190 160, 256 160 C322 160, 352 180, 352 210 C352 250, 370 310, 340 330 C310 350, 280 300, 256 300 C232 300, 202 350, 172 330 C142 310, 160 250, 160 210 Z" 
+        fill="#1e293b" stroke="url(#neonGrad)" stroke-width="10" stroke-linejoin="round" />
+
+  <!-- D-Pad (Left) -->
+  <path d="M200 215 H220 V235 H200 Z M200 245 H220 V265 H200 Z M185 230 H205 V250 H185 Z M215 230 H235 V250 H215 Z" fill="#64748b" />
+  
+  <!-- Buttons (Right) -->
+  <circle cx="285" cy="240" r="8" fill="#38bdf8" />
+  <circle cx="315" cy="240" r="8" fill="#f43f5e" />
+  <circle cx="300" cy="225" r="8" fill="#eab308" />
+  <circle cx="300" cy="255" r="8" fill="#10b981" />
+
+  <!-- Compression Arrow / Lightning Bolt In Center -->
+  <path d="M256 120 L276 180 L250 180 L266 220 L236 170 L256 170 Z" fill="url(#accentGrad)" filter="url(#glow)" />
+  
+  <!-- Storage Reduction Arrows at Bottom -->
+  <path d="M220 370 L256 400 L292 370" fill="none" stroke="url(#accentGrad)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M230 350 L256 372 L282 350" fill="none" stroke="url(#accentGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7" />
+</svg>
