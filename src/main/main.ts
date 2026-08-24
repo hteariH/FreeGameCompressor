@@ -6,6 +6,7 @@ import type { Game, CompressionOptions, CompressionProgress, AppSettings } from 
 import { scanAllGames, scanCustomFolder } from './scanners';
 import { CompressionEngineManager } from './engines';
 import { getDriveInfos } from './utils/disk';
+import { communityService } from './services/community';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,13 +42,20 @@ const defaultSettings: AppSettings = {
   theme: 'dark',
   autoScanOnStartup: true,
   notifyOnComplete: true,
+  shareAnonymousStats: true,
+  hasSeenConsentModal: false,
+  communityServerUrl: 'http://hw.falsetrue.net:8090',
 };
 
 function loadSettings(): AppSettings {
   try {
     if (fs.existsSync(settingsPath)) {
       const data = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      return { ...defaultSettings, ...data };
+      const merged = { ...defaultSettings, ...data };
+      if (merged.communityServerUrl) {
+        communityService.setServerUrl(merged.communityServerUrl);
+      }
+      return merged;
     }
   } catch {}
   return defaultSettings;
@@ -56,6 +64,9 @@ function loadSettings(): AppSettings {
 function saveSettings(settings: AppSettings) {
   try {
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+    if (settings.communityServerUrl) {
+      communityService.setServerUrl(settings.communityServerUrl);
+    }
   } catch {}
 }
 
@@ -209,11 +220,32 @@ ipcMain.handle('launch-game', async (_event, game: Game) => {
 });
 
 ipcMain.handle('compress-game', async (_event, game: Game, options: CompressionOptions) => {
-  return await engineManager.compress(game, options, (progress: CompressionProgress) => {
+  const result = await engineManager.compress(game, options, (progress: CompressionProgress) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('compression-progress', progress);
     }
   });
+
+  // Submit anonymous crowdsourced compression report if user opted in
+  if (result.success) {
+    const currentSettings = loadSettings();
+    if (currentSettings.shareAnonymousStats) {
+      communityService.submitReport({
+        gameId: game.id,
+        gameName: game.name,
+        appId: game.appId,
+        platform: game.platform,
+        uncompressedBytes: game.uncompressedSize,
+        compressedBytes: game.uncompressedSize - (game.savedBytes || 0),
+        savedBytes: game.savedBytes || 0,
+        ratio: game.compressionRatio || 1.45,
+        algorithm: options.algorithm || 'LZX',
+        os: process.platform,
+      }).catch(() => {});
+    }
+  }
+
+  return result;
 });
 
 ipcMain.handle('decompress-game', async (_event, game: Game) => {
@@ -226,4 +258,17 @@ ipcMain.handle('decompress-game', async (_event, game: Game) => {
 
 ipcMain.handle('cancel-compression', (_event, gameId: string) => {
   return engineManager.cancel(gameId);
+});
+
+// Community Insights Handlers
+ipcMain.handle('fetch-community-estimates', async (_event, games) => {
+  return await communityService.fetchEstimates(games);
+});
+
+ipcMain.handle('submit-community-report', async (_event, report) => {
+  return await communityService.submitReport(report);
+});
+
+ipcMain.handle('fetch-community-overview', async () => {
+  return await communityService.fetchOverview();
 });

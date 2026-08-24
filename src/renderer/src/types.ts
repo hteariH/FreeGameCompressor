@@ -10,9 +10,20 @@ export type Platform =
   | 'bottles' 
   | 'custom';
 
-export type CompressionAlgorithm = 'XPRESS4K' | 'XPRESS8K' | 'XPRESS16K' | 'LZX' | 'ZSTD';
+export type CompressionAlgorithm = 'XPRESS4K' | 'XPRESS8K' | 'XPRESS16K' | 'LZX' | 'ZSTD' | 'LZFSE';
 
 export type CompressionStatus = 'uncompressed' | 'compressing' | 'compressed' | 'decompressing' | 'error';
+
+export interface CommunityGameEstimate {
+  gameId: string;
+  gameName: string;
+  appId?: string;
+  totalSubmissions: number;
+  avgSavedBytes: number;
+  avgRatio: number;
+  bestAlgorithm: CompressionAlgorithm;
+  savingsPercent: number;
+}
 
 export interface Game {
   id: string;
@@ -32,6 +43,7 @@ export interface Game {
   fileCount?: number;
   lastCompressedAt?: string;
   appId?: string;
+  communityEstimate?: CommunityGameEstimate;
 }
 
 export interface CompressionProgress {
@@ -58,7 +70,7 @@ export interface DriveInfo {
   freeBytes: number;
   usedBytes: number;
   savedBytes: number;  // Space saved by compressed games on this drive
-  filesystem?: string; // e.g. "NTFS", "btrfs", "ext4"
+  filesystem?: string; // e.g. "NTFS", "btrfs", "ext4", "APFS"
 }
 
 export interface AppSettings {
@@ -70,6 +82,9 @@ export interface AppSettings {
   theme: 'dark' | 'midnight' | 'cyberpunk';
   autoScanOnStartup: boolean;
   notifyOnComplete: boolean;
+  shareAnonymousStats: boolean;
+  hasSeenConsentModal: boolean;
+  communityServerUrl?: string;
 }
 
 export interface CompressionOptions {
@@ -92,6 +107,11 @@ export interface ElectronAPI {
   getSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<void>;
   
+  // Community Insights
+  fetchCommunityEstimates: (games: Array<{ gameId: string; name: string; appId?: string }>) => Promise<Record<string, CommunityGameEstimate>>;
+  submitCommunityReport: (report: any) => Promise<boolean>;
+  fetchCommunityOverview: () => Promise<any>;
+
   // Window Controls
   minimizeWindow: () => Promise<void>;
   maximizeWindow: () => Promise<boolean>;

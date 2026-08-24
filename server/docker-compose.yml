@@ -1,0 +1,19 @@
+services:
+  freegamecompressor-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freegamecompressor-backend
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - NODE_ENV=production
+      - DATA_DIR=/app/data
+    volumes:
+      - fgc_data:/app/data
+
+volumes:
+  fgc_data:
+    name: freegamecompressor_data

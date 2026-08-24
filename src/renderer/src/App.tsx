@@ -17,6 +17,7 @@ import { GameDetailModal } from './components/GameDetailModal';
 import { BatchQueueModal } from './components/BatchQueueModal';
 import { SettingsModal } from './components/SettingsModal';
 import { CustomFolderAdd } from './components/CustomFolderAdd';
+import { CommunityConsentModal } from './components/CommunityConsentModal';
 
 export const App: React.FC = () => {
   // Main Data States
@@ -42,6 +43,8 @@ export const App: React.FC = () => {
     theme: 'dark',
     autoScanOnStartup: true,
     notifyOnComplete: true,
+    shareAnonymousStats: true,
+    hasSeenConsentModal: false,
   });
 
   // UI & Filter States
@@ -57,18 +60,25 @@ export const App: React.FC = () => {
   const [showBatchModal, setShowBatchModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showAddCustomModal, setShowAddCustomModal] = useState<boolean>(false);
+  const [showConsentModal, setShowConsentModal] = useState<boolean>(false);
 
   // Load initial data & register listeners
   useEffect(() => {
     const init = async () => {
       if (window.api) {
+        let loadedSettings: AppSettings | null = null;
         try {
-          const loadedSettings = await window.api.getSettings();
-          if (loadedSettings) setSettings(loadedSettings);
+          loadedSettings = await window.api.getSettings();
+          if (loadedSettings) {
+            setSettings(loadedSettings);
+            if (!loadedSettings.hasSeenConsentModal) {
+              setShowConsentModal(true);
+            }
+          }
         } catch {}
 
         await refreshDrives();
-        await refreshLibrary();
+        await refreshLibrary(loadedSettings || undefined);
 
         // Subscribe to compression progress events
         window.api.onCompressionProgress((progress: CompressionProgress) => {
@@ -96,11 +106,28 @@ export const App: React.FC = () => {
     }
   };
 
-  const refreshLibrary = async () => {
+  const refreshLibrary = async (currentSettings?: AppSettings) => {
     if (!window.api) return;
     setIsScanning(true);
     try {
       const scannedGames = await window.api.scanGames();
+      const activeSettings = currentSettings || settings;
+
+      // Fetch community estimates if enabled
+      if (activeSettings.shareAnonymousStats && scannedGames.length > 0) {
+        try {
+          const identifiers = scannedGames.map(g => ({ gameId: g.id, name: g.name, appId: g.appId }));
+          const estimates = await window.api.fetchCommunityEstimates(identifiers);
+          
+          for (const game of scannedGames) {
+            const match = estimates[game.id] || (game.appId ? estimates[game.appId] : undefined) || estimates[game.name];
+            if (match) {
+              game.communityEstimate = match;
+            }
+          }
+        } catch {}
+      }
+
       setGames(scannedGames);
     } catch (err) {
       console.error('Failed to scan games:', err);
@@ -350,6 +377,22 @@ export const App: React.FC = () => {
           onSelectDirectory={handleSelectDirectory}
           onScanFolder={handleScanSingleFolder}
           onAddGame={handleAddCustomGame}
+        />
+      )}
+
+      {/* 6. First-Launch Community Consent Modal */}
+      {showConsentModal && (
+        <CommunityConsentModal
+          onAccept={() => {
+            setShowConsentModal(false);
+            const nextSettings = { ...settings, shareAnonymousStats: true, hasSeenConsentModal: true };
+            handleSaveSettings(nextSettings);
+          }}
+          onDecline={() => {
+            setShowConsentModal(false);
+            const nextSettings = { ...settings, shareAnonymousStats: false, hasSeenConsentModal: true };
+            handleSaveSettings(nextSettings);
+          }}
         />
       )}
     </div>

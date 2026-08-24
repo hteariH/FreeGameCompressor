@@ -129,6 +129,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
+          {/* Community Insights & Telemetry */}
+          <div className="space-y-3 p-3.5 rounded-2xl bg-surface-elevated/50 border border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-200 block">Community Compression Insights</span>
+                <span className="text-[11px] text-slate-400">Share anonymous compression results and view crowdsourced estimates</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={currentSettings.shareAnonymousStats}
+                onChange={(e) => setCurrentSettings(prev => ({ ...prev, shareAnonymousStats: e.target.checked }))}
+                className="w-4 h-4 rounded bg-surface border-border text-primary focus:ring-0 cursor-pointer"
+              />
+            </div>
+          </div>
+
           {/* Custom Scan Directories */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">

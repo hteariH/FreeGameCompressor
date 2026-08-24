@@ -29,6 +29,14 @@ export const api = {
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: AppSettings): Promise<void> => ipcRenderer.invoke('save-settings', settings),
 
+  // Community Insights
+  fetchCommunityEstimates: (games: Array<{ gameId: string; name: string; appId?: string }>) =>
+    ipcRenderer.invoke('fetch-community-estimates', games),
+  submitCommunityReport: (report: any) =>
+    ipcRenderer.invoke('submit-community-report', report),
+  fetchCommunityOverview: () =>
+    ipcRenderer.invoke('fetch-community-overview'),
+
   // Window Controls
   minimizeWindow: (): Promise<void> => ipcRenderer.invoke('window-minimize'),
   maximizeWindow: (): Promise<boolean> => ipcRenderer.invoke('window-maximize'),

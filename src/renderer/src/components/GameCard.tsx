@@ -7,7 +7,8 @@ import {
   Info, 
   CheckCircle2, 
   FileArchive,
-  Gamepad2
+  Gamepad2,
+  Sparkles
 } from 'lucide-react';
 import type { Game } from '../types';
 import { formatBytes, formatSavingsPercent } from '../utils/format';
@@ -127,6 +128,19 @@ export const GameCard: React.FC<GameCardProps> = ({
             )}
           </div>
         </div>
+
+        {/* Community Estimate Badge if uncompressed */}
+        {!game.isCompressed && game.communityEstimate && (
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-cyan-950/40 border border-cyan-800/40 text-[11px]">
+            <span className="text-cyan-300 font-semibold flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-cyan-400" />
+              Est. Savings:
+            </span>
+            <span className="font-extrabold text-cyan-300 font-mono">
+              ~{game.communityEstimate.savingsPercent}% ({game.communityEstimate.bestAlgorithm})
+            </span>
+          </div>
+        )}
 
         {/* Actions bar */}
         <div className="flex items-center gap-2 pt-1">

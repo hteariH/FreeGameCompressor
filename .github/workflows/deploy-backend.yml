@@ -1,0 +1,54 @@
+name: Deploy Backend to VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Docker Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Deploying FreeGameCompressor Backend on VPS..."
+            
+            # Directory for backend code on VPS
+            APP_DIR="$HOME/freegamecompressor-backend"
+            
+            if [ -d "$APP_DIR/.git" ]; then
+              cd "$APP_DIR"
+              git fetch --all
+              git reset --hard origin/main
+            else
+              rm -rf "$APP_DIR"
+              git clone https://github.com/hteariH/FreeGameCompressor.git "$APP_DIR"
+              cd "$APP_DIR"
+            fi
+            
+            cd "$APP_DIR/server"
+            
+            echo "🐳 Building & Restarting Docker container..."
+            sudo docker compose down || true
+            sudo docker compose up -d --build
+            
+            echo "⏳ Waiting for health check..."
+            sleep 4
+            curl -f http://127.0.0.1:8090/health || (sudo docker logs freegamecompressor-backend && exit 1)
+            
+            echo "✅ Backend successfully deployed and running on port 8090!"
