@@ -6,6 +6,7 @@ import { scanUbisoftGames } from './ubisoft';
 import { scanEAGames } from './ea';
 import { scanXboxGames } from './xbox';
 import { scanLutrisAndBottlesGames } from './lutris';
+import { scanMacGames } from './mac';
 import { scanCustomPaths, scanCustomFolder } from './custom';
 
 export interface ScanOptions {
@@ -50,6 +51,9 @@ export async function scanAllGames(options: ScanOptions = {}): Promise<Game[]> {
   }
   if (enabled.lutris || enabled.bottles) {
     scanPromises.push(scanLutrisAndBottlesGames().catch(() => []));
+  }
+  if (process.platform === 'darwin') {
+    scanPromises.push(scanMacGames().catch(() => []));
   }
   if (enabled.custom && options.customPaths && options.customPaths.length > 0) {
     scanPromises.push(scanCustomPaths(options.customPaths).catch(() => []));

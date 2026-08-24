@@ -1,9 +1,9 @@
 # FreeGameCompressor (CompactVault) 🎮⚡
 
-> A modern, high-performance, open-source Game Storage Optimizer & Transparent Compression Desktop App for **Windows** and **Linux**.
+> A modern, high-performance, open-source Game Storage Optimizer & Transparent Compression Desktop App for **Windows**, **Linux**, and **macOS**.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Platform: Windows | Linux](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-0078D6.svg)
+![Platform: Windows | Linux | macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D6.svg)
 ![Tech: Electron + React + TypeScript + Tailwind](https://img.shields.io/badge/Tech-React%2019%20%7C%20Electron%20%7C%20Tailwind-61DAFB.svg)
 
 ---
@@ -11,9 +11,10 @@
 ## 🌟 Highlights & Features
 
 - 🔍 **Universal Game Discovery**:
-  - **Steam**: Auto-detects all library folders across drives, parses `.acf` manifests, pulls live box art and install paths. (Supports Windows, Linux native, and Steam Flatpak).
-  - **Epic Games Store**: Auto-detects Epic Launcher manifests and Linux Heroic / Legendary installs.
-  - **GOG Galaxy**: Auto-detects Windows Registry installs and Linux Lutris / Heroic GOG libraries.
+  - **Steam**: Auto-detects all library folders across drives, parses `.acf` manifests, pulls live box art and install paths. (Supports Windows, Linux native, Steam Flatpak, and macOS Steam).
+  - **Epic Games Store**: Auto-detects Epic Launcher manifests on Windows & Mac, plus Linux Heroic / Legendary installs.
+  - **GOG Galaxy**: Auto-detects Windows Registry installs, Mac GOG Galaxy, and Linux Lutris / Heroic GOG libraries.
+  - **macOS Applications & Whisky**: Auto-detects `/Applications` games, Mac App Store games, and Whisky / CrossOver GPTK bottles on Apple Silicon.
   - **EA App / Origin**: Auto-detects local game installations.
   - **Ubisoft Connect**: Scans registry installs.
   - **Xbox / Windows Store**: Auto-discovers XboxGames directories across drives.
@@ -24,6 +25,7 @@
   - Compressed games are **immediately playable** without pre-decompressing or waiting.
   - **Windows Engine**: Uses native Windows 10/11 Windows Overlay Filter (WOF) NTFS algorithms (`XPRESS4K`, `XPRESS8K`, `XPRESS16K`, and `LZX`).
   - **Linux Engine**: Uses native **Btrfs transparent filesystem compression** (`zstd`/`zlib`) with `compsize` analytics and overlayfs helpers.
+  - **macOS Engine**: Uses native **Apple APFS transparent filesystem compression** (`LZFSE`, `LZVN`, `ZLIB` via `ditto`).
   - **20% to 60% Storage Reduction**: Saves tens of gigabytes per game.
   - **One-Click Revert / Decompress**: Restore uncompressed state anytime.
 

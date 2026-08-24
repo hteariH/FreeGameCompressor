@@ -53,6 +53,12 @@ export async function scanSteamGames(): Promise<Game[]> {
         steamPaths.push(p);
       }
     }
+  } else if (process.platform === 'darwin') {
+    const home = os.homedir();
+    const macSteamPath = path.join(home, 'Library', 'Application Support', 'Steam');
+    if (fs.existsSync(macSteamPath)) {
+      steamPaths.push(macSteamPath);
+    }
   }
 
   // Set of unique library directories to scan

@@ -9,11 +9,11 @@ const execAsync = promisify(exec);
 export async function getDriveInfos(): Promise<DriveInfo[]> {
   const isWindows = process.platform === 'win32';
   const isLinux = process.platform === 'linux';
+  const isMac = process.platform === 'darwin';
   const drives: DriveInfo[] = [];
 
   if (isWindows) {
     try {
-      // Use PowerShell to get Get-PSDrive -PSProvider FileSystem or Get-Volume
       const { stdout } = await execAsync(
         `powershell -NoProfile -Command "Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object DeviceID, VolumeName, Size, FreeSpace, FileSystem | ConvertTo-Json -Compress"`
       );
@@ -34,8 +34,7 @@ export async function getDriveInfos(): Promise<DriveInfo[]> {
           });
         }
       }
-    } catch (e) {
-      // Fallback: check typical drive letters
+    } catch {
       const letters = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:', 'I:', 'J:', 'K:', 'Z:'];
       for (const letter of letters) {
         try {
@@ -53,9 +52,7 @@ export async function getDriveInfos(): Promise<DriveInfo[]> {
               filesystem: 'NTFS',
             });
           }
-        } catch {
-          // ignore unavailable drives
-        }
+        } catch {}
       }
     }
   } else if (isLinux) {
@@ -66,7 +63,6 @@ export async function getDriveInfos(): Promise<DriveInfo[]> {
         const parts = line.trim().split(/\s+/);
         if (parts.length >= 5) {
           const [mount, sizeStr, availStr, usedStr, fstype] = parts;
-          // Filter root or home or media mount points
           if (mount === '/' || mount.startsWith('/home') || mount.startsWith('/mnt') || mount.startsWith('/media') || mount.startsWith('/run/media')) {
             const total = parseInt(sizeStr, 10) || 0;
             const free = parseInt(availStr, 10) || 0;
@@ -84,7 +80,6 @@ export async function getDriveInfos(): Promise<DriveInfo[]> {
         }
       }
     } catch {
-      // fallback using statfsSync on / and /home
       try {
         const stats = fs.statfsSync('/');
         const total = stats.bsize * stats.blocks;
@@ -97,6 +92,46 @@ export async function getDriveInfos(): Promise<DriveInfo[]> {
           usedBytes: Math.max(0, total - free),
           savedBytes: 0,
           filesystem: 'ext4',
+        });
+      } catch {}
+    }
+  } else if (isMac) {
+    try {
+      const { stdout } = await execAsync(`df -k`);
+      const lines = stdout.trim().split('\n').slice(1);
+      for (const line of lines) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 6) {
+          const mount = parts.slice(8).join(' ') || parts[8] || parts[5];
+          if (mount === '/' || mount === '/System/Volumes/Data' || mount.startsWith('/Volumes/')) {
+            const total = (parseInt(parts[1], 10) || 0) * 1024;
+            const used = (parseInt(parts[2], 10) || 0) * 1024;
+            const free = (parseInt(parts[3], 10) || 0) * 1024;
+            drives.push({
+              mount: mount === '/System/Volumes/Data' ? 'Macintosh HD' : mount,
+              label: mount === '/System/Volumes/Data' ? 'Macintosh HD (APFS)' : mount,
+              totalBytes: total,
+              freeBytes: free,
+              usedBytes: used,
+              savedBytes: 0,
+              filesystem: 'APFS',
+            });
+          }
+        }
+      }
+    } catch {
+      try {
+        const stats = fs.statfsSync('/');
+        const total = stats.bsize * stats.blocks;
+        const free = stats.bsize * stats.bfree;
+        drives.push({
+          mount: '/',
+          label: 'Macintosh HD',
+          totalBytes: total,
+          freeBytes: free,
+          usedBytes: Math.max(0, total - free),
+          savedBytes: 0,
+          filesystem: 'APFS',
         });
       } catch {}
     }
