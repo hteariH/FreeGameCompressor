@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -90,6 +90,7 @@ function getAppIcon() {
 }
 
 function createWindow() {
+  Menu.setApplicationMenu(null);
   const appIcon = getAppIcon();
   mainWindow = new BrowserWindow({
     title: 'FreeGameCompressor',
@@ -97,6 +98,7 @@ function createWindow() {
     height: 840,
     minWidth: 960,
     minHeight: 640,
+    autoHideMenuBar: true,
     icon: appIcon,
     backgroundColor: '#0a0d14',
     webPreferences: {
@@ -108,6 +110,9 @@ function createWindow() {
       sandbox: false,
     },
   });
+
+  mainWindow.removeMenu();
+  mainWindow.setMenuBarVisibility(false);
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
