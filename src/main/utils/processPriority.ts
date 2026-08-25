@@ -57,7 +57,14 @@ class ThrottledLauncher {
 
         ulong mask = ulong.Parse(args[0]);
         string[] cmdParts = new string[args.Length - 1];
-        Array.Copy(args, 1, cmdParts, 0, args.Length - 1);
+        for (int i = 1; i < args.Length; i++) {
+            string arg = args[i];
+            // If argument contains spaces and isn't already quoted, wrap it in quotes
+            if (arg.Contains(" ") && !arg.StartsWith("\"")) {
+                arg = "\"" + arg + "\"";
+            }
+            cmdParts[i - 1] = arg;
+        }
         string cmdLine = string.Join(" ", cmdParts);
 
         var si = new STARTUPINFOW();
@@ -121,7 +128,7 @@ function findCsc(): string | null {
 function ensureLauncher(): string | null {
   if (cachedLauncherPath && fs.existsSync(cachedLauncherPath)) return cachedLauncherPath;
 
-  const cacheDir = path.join(os.tmpdir(), 'fgc-throttle');
+  const cacheDir = path.join(os.tmpdir(), 'fgc-throttle-v2');
   const exePath = path.join(cacheDir, 'throttle_launcher.exe');
   const srcPath = path.join(cacheDir, 'throttle_launcher.cs');
 
