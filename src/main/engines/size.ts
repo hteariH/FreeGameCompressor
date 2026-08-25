@@ -44,12 +44,42 @@ export async function calculateDirectorySize(dirPath: string): Promise<{ totalBy
         }
       }
     } catch {
-      // skip inaccessible directories
+      // ignore
     }
   }
 
   await walk(dirPath);
   return { totalBytes, fileCount };
+}
+
+export async function getAllFiles(dirPath: string): Promise<string[]> {
+  const files: string[] = [];
+
+  async function walk(currentPath: string) {
+    try {
+      const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        try {
+          if (entry.isDirectory()) {
+            await walk(fullPath);
+          } else if (entry.isFile()) {
+            files.push(fullPath);
+            if (files.length % 50 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 5));
+            }
+          }
+        } catch {
+          // skip inaccessible
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  await walk(dirPath);
+  return files;
 }
 
 /**

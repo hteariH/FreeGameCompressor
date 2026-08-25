@@ -2,27 +2,32 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorithm } from '../../renderer/src/types';
-import { calculateDirectorySize, getCompressionStats } from './size';
+import { calculateDirectorySize, getCompressionStats, getAllFiles } from './size';
 import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
 import { spawnThrottledCompact } from '../utils/processPriority';
 
-const activeJobs = new Map<string, ChildProcess>();
+const activeJobs = new Map<string, ChildProcess | 'pending'>();
+let isCancelled = new Set<string>();
 
 export class WindowsCompressionEngine {
-  /**
-   * Compresses a game folder using Windows Overlay Filter / compact.exe
-   */
   public async compress(
     game: Game,
     options: CompressionOptions,
     onProgress: (progress: CompressionProgress) => void
   ): Promise<{ success: boolean; error?: string }> {
     const algorithm: CompressionAlgorithm = options.algorithm || 'LZX';
+    isCancelled.delete(game.id);
+    activeJobs.set(game.id, 'pending');
     
-    // First, scan directory to get total file count and size estimate
-    const { totalBytes, fileCount } = await calculateDirectorySize(game.installPath);
-    const totalFiles = Math.max(fileCount, 1);
+    const files = await getAllFiles(game.installPath);
+    if (files.length === 0) {
+      activeJobs.delete(game.id);
+      return { success: true };
+    }
+    
+    const { totalBytes } = await calculateDirectorySize(game.installPath);
+    const totalFiles = files.length;
     
     let processedFiles = 0;
     let processedBytes = 0;
@@ -33,271 +38,249 @@ export class WindowsCompressionEngine {
     let speedBytesPerSec = 0;
     let lastIpcTime = 0;
 
-    // Capture exact file timestamps before compression to prevent Steam/Epic from detecting date changes
     const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
-
-    // Build compact.exe arguments
-    // /c : Compress
-    // /s : Subdirectories
-    // /a : Hidden and system files
-    // /i : Ignore errors and continue
-    // /f : Force compression on all files
-    // /exe:<algo> : WOF algorithm (XPRESS4K, XPRESS8K, XPRESS16K, LZX)
-    const args = ['/c', `/s:${game.installPath}`, '/a', '/i', '/f', `/exe:${algorithm}`, '*'];
-
     const cpuLimit = options.cpuLimitPercentage || 30;
 
-    return new Promise((resolve) => {
-      const proc = spawnThrottledCompact(args, game.installPath, cpuLimit);
+    const CHUNK_SIZE = 50;
 
-      activeJobs.set(game.id, proc);
+    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+      if (isCancelled.has(game.id)) break;
 
-      let buffer = '';
+      const chunk = files.slice(i, i + CHUNK_SIZE);
+      const args = ['/c', '/a', '/i', '/f', '/exe:' + algorithm, ...chunk];
 
-      proc.stdout.on('data', (data: Buffer) => {
-        buffer += data.toString();
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+      await new Promise<void>((resolveChunk) => {
+        const proc = spawnThrottledCompact(args, game.installPath, cpuLimit);
+        activeJobs.set(game.id, proc);
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
+        let buffer = '';
+        proc.stdout.on('data', (data: Buffer) => {
+          buffer += data.toString();
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || '';
 
-          // Pattern: "filename.ext   12345 : 6789 = 1.8 to 1 [OK]"
-          const match = trimmed.match(/^(.*?)\s+(\d+)\s*:\s*(\d+)\s*=\s*[\d\.]+\s*to\s*1\s*\[OK\]/i);
-          if (match) {
-            const fileName = match[1].trim();
-            const origSize = parseInt(match[2], 10);
-            const compSize = parseInt(match[3], 10);
-            
-            processedFiles++;
-            processedBytes += origSize;
-            savedBytes += Math.max(0, origSize - compSize);
-            bytesSinceLast += origSize;
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
 
-            const now = Date.now();
-            if (now - lastTime >= 500) {
-              const elapsedSec = (now - lastTime) / 1000;
-              speedBytesPerSec = Math.round(bytesSinceLast / elapsedSec);
-              bytesSinceLast = 0;
-              lastTime = now;
-            }
+            const match = trimmed.match(/^(.*?)\s+(\d+)\s*:\s*(\d+)\s*=\s*[\d\.]+\s*to\s*1\s*\[OK\]/i);
+            if (match) {
+              const fileName = match[1].trim();
+              const origSize = parseInt(match[2], 10);
+              const compSize = parseInt(match[3], 10);
+              
+              processedFiles++;
+              processedBytes += origSize;
+              savedBytes += Math.max(0, origSize - compSize);
+              bytesSinceLast += origSize;
 
-            const percentage = Math.min(99, Math.round((processedFiles / totalFiles) * 100));
-            const remainingBytes = Math.max(0, totalBytes - processedBytes);
-            const estimatedRemainingSeconds = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
+              const now = Date.now();
+              if (now - lastTime >= 500) {
+                const elapsedSec = (now - lastTime) / 1000;
+                speedBytesPerSec = Math.round(bytesSinceLast / elapsedSec);
+                bytesSinceLast = 0;
+                lastTime = now;
+              }
 
-            if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
-              lastIpcTime = now;
-              onProgress({
-                gameId: game.id,
-                gameName: game.name,
-                currentFile: fileName,
-                processedFiles,
-                totalFiles,
-                processedBytes,
-                totalBytes,
-                savedBytes,
-                percentage,
-                speedBytesPerSec,
-                estimatedRemainingSeconds,
-                status: 'compressing',
-                algorithm,
-              });
+              const percentage = Math.min(99, Math.round((processedFiles / totalFiles) * 100));
+              const remainingBytes = Math.max(0, totalBytes - processedBytes);
+              const estimatedRemainingSeconds = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
+
+              if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
+                lastIpcTime = now;
+                onProgress({
+                  gameId: game.id,
+                  gameName: game.name,
+                  currentFile: fileName,
+                  processedFiles,
+                  totalFiles,
+                  processedBytes,
+                  totalBytes,
+                  savedBytes,
+                  percentage,
+                  speedBytesPerSec,
+                  estimatedRemainingSeconds,
+                  status: 'compressing',
+                  algorithm,
+                });
+              }
             }
           }
-        }
+        });
+
+        proc.on('close', () => resolveChunk());
+        proc.on('error', () => resolveChunk());
       });
 
-      let stderrOutput = '';
-      proc.stderr.on('data', (data: Buffer) => {
-        stderrOutput += data.toString();
-      });
+      // The Magic Pause: Absolute Wi-Fi savior
+      await new Promise(r => setTimeout(r, 50));
+    }
 
-      proc.on('close', async (code) => {
-        activeJobs.delete(game.id);
+    activeJobs.delete(game.id);
 
-        if (code === 0 || code === null) {
-          // Restore exact timestamps so Steam, Epic & launchers see ZERO file changes
-          try {
-            restoreDirectoryTimestamps(savedTimestamps);
-          } catch {}
+    if (isCancelled.has(game.id)) {
+      isCancelled.delete(game.id);
+      return { success: false, error: 'Cancelled' };
+    }
 
-          // Ensure Steam manifest state remains Fully Installed (StateFlags 4)
-          if (game.platform === 'steam') {
-            try {
-              ensureSteamManifestInstalled(game.installPath, game.appId);
-            } catch {}
-          }
+    try {
+      restoreDirectoryTimestamps(savedTimestamps);
+    } catch {}
 
-          // Send 100% completed progress
-          onProgress({
-            gameId: game.id,
-            gameName: game.name,
-            currentFile: 'Complete',
-            processedFiles: totalFiles,
-            totalFiles,
-            processedBytes: totalBytes,
-            totalBytes,
-            savedBytes,
-            percentage: 100,
-            speedBytesPerSec: 0,
-            estimatedRemainingSeconds: 0,
-            status: 'compressed',
-            algorithm,
-          });
-          resolve({ success: true });
-        } else {
-          // If killed or exited with error
-          const errorMsg = stderrOutput.trim() || `Process exited with code ${code}`;
-          onProgress({
-            gameId: game.id,
-            gameName: game.name,
-            currentFile: 'Stopped',
-            processedFiles,
-            totalFiles,
-            processedBytes,
-            totalBytes,
-            savedBytes,
-            percentage: 0,
-            speedBytesPerSec: 0,
-            estimatedRemainingSeconds: 0,
-            status: 'error',
-            algorithm,
-            error: errorMsg,
-          });
-          resolve({ success: false, error: errorMsg });
-        }
-      });
+    if (game.platform === 'steam') {
+      try {
+        ensureSteamManifestInstalled(game.installPath, game.appId);
+      } catch {}
+    }
 
-      proc.on('error', (err) => {
-        activeJobs.delete(game.id);
-        resolve({ success: false, error: err.message });
-      });
+    onProgress({
+      gameId: game.id,
+      gameName: game.name,
+      currentFile: 'Complete',
+      processedFiles: totalFiles,
+      totalFiles,
+      processedBytes: totalBytes,
+      totalBytes,
+      savedBytes,
+      percentage: 100,
+      speedBytesPerSec: 0,
+      estimatedRemainingSeconds: 0,
+      status: 'compressed',
+      algorithm,
     });
+    return { success: true };
   }
 
-  /**
-   * Decompresses a game folder (reverts WOF and standard NTFS compression)
-   */
   public async decompress(
     game: Game,
     onProgress: (progress: CompressionProgress) => void,
     options?: CompressionOptions
   ): Promise<{ success: boolean; error?: string }> {
-    const { totalBytes, fileCount } = await calculateDirectorySize(game.installPath);
-    const totalFiles = Math.max(fileCount, 1);
+    isCancelled.delete(game.id);
+    activeJobs.set(game.id, 'pending');
+
+    const files = await getAllFiles(game.installPath);
+    if (files.length === 0) {
+      activeJobs.delete(game.id);
+      return { success: true };
+    }
+
+    const { totalBytes } = await calculateDirectorySize(game.installPath);
+    const totalFiles = files.length;
     let processedFiles = 0;
     let lastIpcTime = 0;
 
-    // Capture exact file timestamps before decompression
     const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
-
-    // Decompress WOF and NTFS compressed files
-    const argsExe = ['/u', `/s:${game.installPath}`, '/a', '/i', '/exe', '*'];
     const cpuLimit = options?.cpuLimitPercentage || 30;
 
-    return new Promise((resolve) => {
-      const proc = spawnThrottledCompact(argsExe, game.installPath, cpuLimit);
+    const CHUNK_SIZE = 50;
 
-      activeJobs.set(game.id, proc);
+    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+      if (isCancelled.has(game.id)) break;
 
-      let buffer = '';
-      proc.stdout.on('data', (data: Buffer) => {
-        buffer += data.toString();
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop() || '';
+      const chunk = files.slice(i, i + CHUNK_SIZE);
+      const argsExe = ['/u', '/a', '/i', '/exe', ...chunk];
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          // Decompression outputs uncompressed file notifications
-          if (trimmed.includes('[OK]') || trimmed.includes(':')) {
-            processedFiles++;
-            const percentage = Math.min(95, Math.round((processedFiles / totalFiles) * 100));
-            const now = Date.now();
-            if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
-              lastIpcTime = now;
-              onProgress({
-                gameId: game.id,
-                gameName: game.name,
-                currentFile: trimmed.split(/\s+/)[0] || 'Uncompressing...',
-                processedFiles,
-                totalFiles,
-                processedBytes: 0,
-                totalBytes,
-                savedBytes: 0,
-                percentage,
-                speedBytesPerSec: 0,
-                estimatedRemainingSeconds: 0,
-                status: 'decompressing',
-                algorithm: 'LZX',
-              });
+      await new Promise<void>((resolveChunk) => {
+        const proc = spawnThrottledCompact(argsExe, game.installPath, cpuLimit);
+        activeJobs.set(game.id, proc);
+
+        let buffer = '';
+        proc.stdout.on('data', (data: Buffer) => {
+          buffer += data.toString();
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            if (trimmed.includes('[OK]') || trimmed.includes(':')) {
+              processedFiles++;
+              const percentage = Math.min(95, Math.round((processedFiles / totalFiles) * 100));
+              const now = Date.now();
+              if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
+                lastIpcTime = now;
+                onProgress({
+                  gameId: game.id,
+                  gameName: game.name,
+                  currentFile: trimmed.split(/\s+/)[0] || 'Uncompressing...',
+                  processedFiles,
+                  totalFiles,
+                  processedBytes: 0,
+                  totalBytes,
+                  savedBytes: 0,
+                  percentage,
+                  speedBytesPerSec: 0,
+                  estimatedRemainingSeconds: 0,
+                  status: 'decompressing',
+                  algorithm: 'LZX',
+                });
+              }
             }
           }
-        }
+        });
+
+        proc.on('close', () => resolveChunk());
+        proc.on('error', () => resolveChunk());
       });
 
-      proc.on('close', async (code) => {
-        activeJobs.delete(game.id);
-        // Also run standard uncompress flag to remove any NTFS directory marks
-        try {
-          const proc2 = spawnThrottledCompact(['/u', `/s:${game.installPath}`, '/a', '/i', '*'], game.installPath, cpuLimit);
-          proc2.on('close', () => {
-            try {
-              restoreDirectoryTimestamps(savedTimestamps);
-            } catch {}
+      // Pause for Wi-Fi stability
+      await new Promise(r => setTimeout(r, 50));
+    }
 
-            if (game.platform === 'steam') {
-              try {
-                ensureSteamManifestInstalled(game.installPath, game.appId);
-              } catch {}
-            }
+    if (isCancelled.has(game.id)) {
+      activeJobs.delete(game.id);
+      isCancelled.delete(game.id);
+      return { success: false, error: 'Cancelled' };
+    }
 
-            onProgress({
-              gameId: game.id,
-              gameName: game.name,
-              currentFile: 'Restored',
-              processedFiles: totalFiles,
-              totalFiles,
-              processedBytes: totalBytes,
-              totalBytes,
-              savedBytes: 0,
-              percentage: 100,
-              speedBytesPerSec: 0,
-              estimatedRemainingSeconds: 0,
-              status: 'uncompressed',
-              algorithm: 'LZX',
-            });
-            resolve({ success: true });
-          });
-        } catch {
-          resolve({ success: true });
-        }
-      });
-
-      proc.on('error', (err) => {
-        activeJobs.delete(game.id);
-        resolve({ success: false, error: err.message });
-      });
+    await new Promise<void>((resolveFinal) => {
+      const proc2 = spawnThrottledCompact(['/u', '/s:' + game.installPath, '/a', '/i', '*'], game.installPath, cpuLimit);
+      proc2.on('close', () => resolveFinal());
+      proc2.on('error', () => resolveFinal());
     });
+
+    activeJobs.delete(game.id);
+
+    try {
+      restoreDirectoryTimestamps(savedTimestamps);
+    } catch {}
+
+    if (game.platform === 'steam') {
+      try {
+        ensureSteamManifestInstalled(game.installPath, game.appId);
+      } catch {}
+    }
+
+    onProgress({
+      gameId: game.id,
+      gameName: game.name,
+      currentFile: 'Restored',
+      processedFiles: totalFiles,
+      totalFiles,
+      processedBytes: totalBytes,
+      totalBytes,
+      savedBytes: 0,
+      percentage: 100,
+      speedBytesPerSec: 0,
+      estimatedRemainingSeconds: 0,
+      status: 'uncompressed',
+      algorithm: 'LZX',
+    });
+    return { success: true };
   }
 
-  /**
-   * Cancel an active compression/decompression job
-   */
   public cancel(gameId: string): boolean {
+    isCancelled.add(gameId);
     const proc = activeJobs.get(gameId);
-    if (proc && !proc.killed) {
+    if (proc && proc !== 'pending' && !proc.killed) {
       try {
-        // Kill process tree on Windows
         spawn('taskkill', ['/pid', proc.pid?.toString() || '', '/f', '/t']);
       } catch {
         proc.kill('SIGKILL');
       }
-      activeJobs.delete(gameId);
       return true;
     }
-    return false;
+    return true;
   }
 }

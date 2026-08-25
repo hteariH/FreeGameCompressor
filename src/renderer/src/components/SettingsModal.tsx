@@ -69,7 +69,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-border bg-surface-elevated/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-md bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shadow-sm">
               <SettingsIcon className="w-5 h-5" />
             </div>
             <div>
@@ -80,7 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-surface-hover transition-colors"
+            className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-surface-hover transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -96,7 +96,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <select
               value={currentSettings.defaultAlgorithm}
               onChange={(e) => setCurrentSettings(prev => ({ ...prev, defaultAlgorithm: e.target.value as CompressionAlgorithm }))}
-              className="w-full bg-surface-elevated border border-border text-slate-200 text-xs font-semibold rounded-xl p-3 outline-none cursor-pointer"
+              className="w-full bg-surface-elevated border border-border text-slate-200 text-xs font-semibold rounded-md p-3 outline-none cursor-pointer"
             >
               <option value="LZX">LZX (Maximum Compression, Highest Storage Savings)</option>
               <option value="XPRESS16K">XPRESS 16K (Balanced, High Speed & High Compression)</option>
@@ -120,7 +120,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCurrentSettings(prev => ({ ...prev, cpuLimitPercentage: 30 }))}
-                className={`p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3 rounded-md border text-left transition-all ${
                   (currentSettings.cpuLimitPercentage || 30) === 30
                     ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md shadow-emerald-500/10'
                     : 'bg-surface-elevated/40 border-border hover:bg-surface-elevated text-slate-400'
@@ -138,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCurrentSettings(prev => ({ ...prev, cpuLimitPercentage: 50 }))}
-                className={`p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3 rounded-md border text-left transition-all ${
                   currentSettings.cpuLimitPercentage === 50
                     ? 'bg-primary/15 border-primary/50 shadow-md shadow-primary/10'
                     : 'bg-surface-elevated/40 border-border hover:bg-surface-elevated text-slate-400'
@@ -156,7 +156,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setCurrentSettings(prev => ({ ...prev, cpuLimitPercentage: 100 }))}
-                className={`p-3 rounded-2xl border text-left transition-all ${
+                className={`p-3 rounded-md border text-left transition-all ${
                   currentSettings.cpuLimitPercentage === 100
                     ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10'
                     : 'bg-surface-elevated/40 border-border hover:bg-surface-elevated text-slate-400'
@@ -176,14 +176,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Enabled Platforms */}
           <div className="space-y-3">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-primary" /> Auto-Discovered Launchers
+              <Layers className="w-4 h-4 text-primary" /> Au Launchers
             </label>
             <div className="grid grid-cols-2 gap-2.5">
               {(['steam', 'epic', 'gog', 'ubisoft', 'ea', 'xbox', 'lutris', 'bottles'] as Platform[]).map((p) => (
                 <div
                   key={p}
                   onClick={() => togglePlatform(p)}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                  className={`p-3 rounded-md border flex items-center justify-between cursor-pointer transition-all ${
                     currentSettings.enabledPlatforms[p]
                       ? 'bg-primary/10 border-primary/50 text-slate-100'
                       : 'bg-surface-elevated/40 border-border text-slate-500'
@@ -191,7 +191,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   <span className="text-xs font-bold uppercase">{p}</span>
                   <div className={`w-4 h-4 rounded flex items-center justify-center ${
-                    currentSettings.enabledPlatforms[p] ? 'bg-primary text-white' : 'border border-border'
+                    currentSettings.enabledPlatforms[p] ? 'bg-primary text-zinc-950' : 'border border-border'
                   }`}>
                     {currentSettings.enabledPlatforms[p] && <Check className="w-3 h-3" />}
                   </div>
@@ -201,7 +201,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Community Insights & Telemetry */}
-          <div className="space-y-3 p-3.5 rounded-2xl bg-surface-elevated/50 border border-border">
+          <div className="space-y-3 p-3.5 rounded-md bg-surface-elevated/50 border border-border">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-200 block">Community Compression Insights</span>
@@ -232,13 +232,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {currentSettings.customScanPaths.length === 0 ? (
-              <p className="text-xs text-slate-500 italic bg-surface-elevated/40 p-3 rounded-xl border border-border">
+              <p className="text-xs text-slate-500 italic bg-surface-elevated/40 p-3 rounded-md border border-border">
                 No custom folders added yet. Click "Add Folder" to include extra directories (e.g. D:\Games).
               </p>
             ) : (
               <div className="space-y-2">
                 {currentSettings.customScanPaths.map((p, idx) => (
-                  <div key={idx} className="flex items-center justify-between bg-surface-elevated p-2.5 px-3 rounded-xl border border-border">
+                  <div key={idx} className="flex items-center justify-between bg-surface-elevated p-2.5 px-3 rounded-md border border-border">
                     <span className="text-xs font-mono text-slate-300 truncate max-w-[400px]">{p}</span>
                     <button
                       onClick={() => handleRemoveScanPath(idx)}
@@ -258,13 +258,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="p-4 px-6 border-t border-border bg-surface-elevated/60 flex items-center justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
+            className="px-4 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg shadow-primary/25"
+            className="flex items-center gap-1.5 px-5 py-2 rounded-md bg-primary hover:bg-primary-hover text-zinc-950 text-xs font-bold transition-all shadow-sm shadow-primary/25"
           >
             <Check className="w-4 h-4" />
             <span>Save Settings</span>

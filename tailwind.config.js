@@ -8,16 +8,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0a0d14',
-        surface: '#111726',
-        'surface-elevated': '#182035',
-        'surface-hover': '#1e2942',
-        border: '#263352',
-        'border-light': '#36466b',
+        background: '#09090b', // Zinc 950
+        surface: '#18181b', // Zinc 900
+        'surface-elevated': '#27272a', // Zinc 800
+        'surface-hover': '#3f3f46', // Zinc 700
+        border: '#27272a',
+        'border-light': '#3f3f46',
         primary: {
-          DEFAULT: '#3b82f6',
-          hover: '#2563eb',
-          glow: 'rgba(59, 130, 246, 0.4)'
+          DEFAULT: '#fafafa', // Zinc 50 for buttons
+          hover: '#e4e4e7',
+          glow: 'transparent'
         },
         accent: {
           cyan: '#06b6d4',

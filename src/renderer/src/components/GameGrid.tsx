@@ -25,7 +25,7 @@ export const GameGrid: React.FC<GameGridProps> = ({
   if (games.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-16 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-surface-elevated flex items-center justify-center text-slate-500 mb-4 border border-border">
+        <div className="w-16 h-16 rounded-md bg-surface-elevated flex items-center justify-center text-slate-500 mb-4 border border-border">
           <Gamepad2 className="w-8 h-8 text-slate-400" />
         </div>
         <h3 className="text-lg font-bold text-slate-200">No Games Found</h3>
@@ -34,7 +34,7 @@ export const GameGrid: React.FC<GameGridProps> = ({
         </p>
         <button
           onClick={onOpenAddCustom}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-sm transition-all shadow-lg shadow-primary/20"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-md bg-primary hover:bg-primary-hover text-zinc-950 font-semibold text-sm transition-all shadow-sm shadow-primary/20"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Add Custom Game Folder</span>

@@ -17,7 +17,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ games, drives }) =
   return (
     <div className="p-6 grid grid-cols-1 lg:grid-cols-4 gap-4">
       {/* Total Saved Card */}
-      <div className="glass-panel rounded-2xl p-5 relative overflow-hidden flex flex-col justify-between border-l-4 border-l-accent-emerald">
+      <div className="bg-surface border border-border rounded-md p-5 relative overflow-hidden flex flex-col justify-between border-l-4 border-l-accent-emerald">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Space Saved</span>
           <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
@@ -39,7 +39,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ games, drives }) =
       </div>
 
       {/* Library Size Card */}
-      <div className="glass-panel rounded-2xl p-5 flex flex-col justify-between border-l-4 border-l-primary">
+      <div className="bg-surface border border-border rounded-md p-5 flex flex-col justify-between border-l-4 border-l-primary">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Games Size</span>
           <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center">
@@ -60,7 +60,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ games, drives }) =
       </div>
 
       {/* Drive Visualizer (Spans 2 columns) */}
-      <div className="glass-panel rounded-2xl p-5 lg:col-span-2 flex flex-col justify-between border-l-4 border-l-cyan-500">
+      <div className="bg-surface border border-border rounded-md p-5 lg:col-span-2 flex flex-col justify-between border-l-4 border-l-cyan-500">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
             <HardDrive className="w-4 h-4 text-cyan-400" />
@@ -90,7 +90,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ games, drives }) =
                 {/* Progress bar */}
                 <div className="w-full h-2 bg-surface-elevated rounded-full overflow-hidden flex border border-border">
                   <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500"
+                    className="h-full bg-surface-elevated -500 -400 rounded-full transition-all duration-500"
                     style={{ width: `${usedPerc}%` }}
                   />
                 </div>

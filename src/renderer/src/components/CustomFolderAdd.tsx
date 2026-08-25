@@ -71,7 +71,7 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-border bg-surface-elevated/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-md bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center shadow-sm">
               <FolderPlus className="w-5 h-5" />
             </div>
             <div>
@@ -82,7 +82,7 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-surface-hover transition-colors"
+            className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-surface-hover transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -103,11 +103,11 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
                   setScannedGame(null);
                 }}
                 placeholder="e.g. C:\Games\StandaloneTitle or /home/user/Games/MyGame"
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-surface-elevated border border-border focus:border-primary text-xs font-mono text-slate-200 placeholder-slate-500 outline-none"
+                className="flex-1 px-3.5 py-2.5 rounded-md bg-surface-elevated border border-border focus:border-primary text-xs font-mono text-slate-200 placeholder-slate-500 outline-none"
               />
               <button
                 onClick={handleBrowse}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-border text-xs font-bold transition-all shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-border text-xs font-bold transition-all shrink-0"
               >
                 <FolderSearch className="w-4 h-4 text-cyan-400" />
                 <span>Browse</span>
@@ -119,7 +119,7 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
           {folderPath && !scannedGame && !isScanning && (
             <button
               onClick={() => handleScan(folderPath)}
-              className="w-full py-2 rounded-xl bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-border text-xs font-bold transition-all"
+              className="w-full py-2 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-200 border border-border text-xs font-bold transition-all"
             >
               Analyze Directory
             </button>
@@ -127,14 +127,14 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
 
           {/* Scanning status */}
           {isScanning && (
-            <div className="p-4 rounded-2xl bg-surface-elevated/40 border border-border text-center text-xs text-slate-400 animate-pulse">
+            <div className="p-4 rounded-md bg-surface-elevated/40 border border-border text-center text-xs text-slate-400 animate-pulse">
               Analyzing directory files and disk footprint...
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div className="p-3 rounded-xl bg-rose-950/50 border border-rose-700/50 text-rose-300 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-md bg-rose-950/50 border border-rose-700/50 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -142,7 +142,7 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
 
           {/* Detected game summary */}
           {scannedGame && (
-            <div className="p-4 rounded-2xl bg-surface-elevated border border-primary/40 space-y-3">
+            <div className="p-4 rounded-md bg-surface-elevated border border-primary/40 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -171,14 +171,14 @@ export const CustomFolderAdd: React.FC<CustomFolderAddProps> = ({
         <div className="p-4 px-6 border-t border-border bg-surface-elevated/60 flex items-center justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
+            className="px-4 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
           >
             Cancel
           </button>
           <button
             disabled={!scannedGame}
             onClick={handleConfirm}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg shadow-primary/25 disabled:opacity-40"
+            className="flex items-center gap-1.5 px-5 py-2 rounded-md bg-primary hover:bg-primary-hover text-zinc-950 text-xs font-bold transition-all shadow-sm shadow-primary/25 disabled:opacity-40"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Add Game to Library</span>

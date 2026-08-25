@@ -92,12 +92,12 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
               className="w-full h-full object-cover opacity-40 blur-xs scale-105"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent" />
+          <div className="absolute inset-0 bg-surface-elevated  /60 " />
 
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-xl bg-surface/80 hover:bg-surface text-slate-300 hover:text-white border border-border transition-all"
+            className="absolute top-4 right-4 p-2 rounded-md bg-surface/80 hover:bg-surface text-slate-300 hover:text-white border border-border transition-all"
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,14 +127,14 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onOpenFolder(game.installPath)}
-                className="p-2.5 rounded-xl bg-surface-elevated/80 hover:bg-surface-hover text-slate-200 border border-border transition-all"
+                className="p-2.5 rounded-md bg-surface-elevated/80 hover:bg-surface-hover text-slate-200 border border-border transition-all"
                 title="Open Folder"
               >
                 <FolderOpen className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onLaunch(game)}
-                className="p-2.5 rounded-xl bg-surface-elevated/80 hover:bg-surface-hover text-emerald-400 border border-border transition-all"
+                className="p-2.5 rounded-md bg-surface-elevated/80 hover:bg-surface-hover text-emerald-400 border border-border transition-all"
                 title="Launch Game"
               >
                 <Play className="w-4 h-4" />
@@ -146,14 +146,14 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
         {/* Scrollable details body */}
         <div className="p-6 space-y-6 overflow-y-auto">
           {/* Path */}
-          <div className="bg-surface-elevated/60 rounded-xl p-3 border border-border">
+          <div className="bg-surface-elevated/60 rounded-md p-3 border border-border">
             <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Install Directory</span>
             <span className="text-xs font-mono text-slate-300 break-all">{game.installPath}</span>
           </div>
 
           {/* Size Cards Grid */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-surface-elevated p-3.5 rounded-xl border border-border">
+            <div className="bg-surface-elevated p-3.5 rounded-md border border-border">
               <div className="text-[10px] font-bold uppercase text-slate-400">Nominal Size</div>
               <div className="text-base font-extrabold text-slate-100 mt-1">
                 {formatBytes(game.uncompressedSize, 1)}
@@ -161,7 +161,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
               <div className="text-[11px] text-slate-500 mt-0.5">{game.fileCount || 0} files</div>
             </div>
 
-            <div className="bg-surface-elevated p-3.5 rounded-xl border border-border">
+            <div className="bg-surface-elevated p-3.5 rounded-md border border-border">
               <div className="text-[10px] font-bold uppercase text-slate-400">Size on Disk</div>
               <div className="text-base font-extrabold text-slate-100 mt-1">
                 {formatBytes(game.isCompressed ? game.compressedSize : game.uncompressedSize, 1)}
@@ -171,7 +171,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
               </div>
             </div>
 
-            <div className="bg-surface-elevated p-3.5 rounded-xl border border-border">
+            <div className="bg-surface-elevated p-3.5 rounded-md border border-border">
               <div className="text-[10px] font-bold uppercase text-slate-400">Space Saved</div>
               <div className="text-base font-extrabold text-emerald-400 mt-1 glow-emerald">
                 {game.isCompressed ? `+${formatBytes(game.savedBytes, 1)}` : '0 B'}
@@ -197,7 +197,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
                 <div
                   key={algo.id}
                   onClick={() => setSelectedAlgo(algo.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-3.5 rounded-md border cursor-pointer transition-all ${
                     selectedAlgo === algo.id
                       ? 'bg-primary/15 border-primary text-slate-100 shadow-md shadow-primary/15'
                       : 'bg-surface-elevated/70 border-border text-slate-300 hover:border-border-light'
@@ -216,7 +216,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
           </div>
 
           {/* Safe exclusions checkbox */}
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-surface-elevated/40 border border-border">
+          <div className="flex items-center gap-2.5 p-3 rounded-md bg-surface-elevated/40 border border-border">
             <input
               type="checkbox"
               id="skipMedia"
@@ -234,7 +234,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
         <div className="p-4 px-6 border-t border-border bg-surface-elevated/50 flex items-center justify-between shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
+            className="px-4 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
           >
             Close
           </button>
@@ -246,7 +246,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
                   onClose();
                   onDecompress(game);
                 }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-elevated hover:bg-amber-950/40 text-amber-300 border border-border hover:border-amber-700/50 text-xs font-bold transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-surface-elevated hover:bg-amber-950/40 text-amber-300 border border-border hover:border-amber-700/50 text-xs font-bold transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Revert to Uncompressed</span>
@@ -258,7 +258,7 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
                 onClose();
                 onCompress(game, selectedAlgo, skipMedia);
               }}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg shadow-primary/25"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-md bg-primary hover:bg-primary-hover text-zinc-950 text-xs font-bold transition-all shadow-sm shadow-primary/25"
             >
               <Zap className="w-4 h-4" />
               <span>{game.isCompressed ? 'Re-Compress Game' : 'Compress Game Now'}</span>

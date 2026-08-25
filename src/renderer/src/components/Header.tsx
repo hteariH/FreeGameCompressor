@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onFilterStatusChange('all')}
             className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
               filterStatus === 'all'
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-primary text-zinc-950 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onViewModeChange('grid')}
             className={`p-1.5 rounded-md transition-all ${
               viewMode === 'grid'
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-primary text-zinc-950 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Grid View"
@@ -131,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onViewModeChange('table')}
             className={`p-1.5 rounded-md transition-all ${
               viewMode === 'table'
-                ? 'bg-primary text-white shadow-sm'
+                ? 'bg-primary text-zinc-950 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title="List View"
@@ -149,7 +149,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Layers className="w-4 h-4" />
             {uncompressedCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-primary text-white font-bold">
+              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-primary text-zinc-950 font-bold">
                 {uncompressedCount}
               </span>
             )}

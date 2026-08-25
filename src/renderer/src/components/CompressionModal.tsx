@@ -36,7 +36,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-border bg-surface-elevated/50 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${
+            <div className={`w-10 h-10 rounded-md flex items-center justify-center shadow-sm ${
               isError
                 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                 : isCompleted
@@ -104,7 +104,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
                     ? 'bg-rose-500'
                     : isCompleted
                     ? 'bg-emerald-500'
-                    : 'bg-gradient-to-r from-blue-500 via-cyan-400 to-indigo-500 animate-pulse'
+                    : 'bg-surface-elevated -500 -400 -500 animate-pulse'
                 }`}
                 style={{ width: `${progress.percentage}%` }}
               />
@@ -112,7 +112,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
           </div>
 
           {/* Current file notification */}
-          <div className="bg-surface-elevated/60 rounded-xl p-3.5 border border-border">
+          <div className="bg-surface-elevated/60 rounded-md p-3.5 border border-border">
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-1">
               <FileText className="w-3.5 h-3.5 text-blue-400" />
               Current File
@@ -125,7 +125,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
           {/* Live Metrics Grid */}
           <div className="grid grid-cols-3 gap-3">
             {/* Speed */}
-            <div className="bg-surface-elevated/50 p-3 rounded-xl border border-border">
+            <div className="bg-surface-elevated/50 p-3 rounded-md border border-border">
               <div className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
                 <Activity className="w-3 h-3 text-cyan-400" /> Speed
               </div>
@@ -135,7 +135,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
             </div>
 
             {/* Space Saved Live */}
-            <div className="bg-surface-elevated/50 p-3 rounded-xl border border-border">
+            <div className="bg-surface-elevated/50 p-3 rounded-md border border-border">
               <div className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
                 <HardDrive className="w-3 h-3 text-emerald-400" /> Space Saved
               </div>
@@ -145,7 +145,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
             </div>
 
             {/* ETA */}
-            <div className="bg-surface-elevated/50 p-3 rounded-xl border border-border">
+            <div className="bg-surface-elevated/50 p-3 rounded-md border border-border">
               <div className="text-[10px] font-bold uppercase text-slate-400 flex items-center gap-1">
                 <Clock className="w-3 h-3 text-amber-400" /> ETA
               </div>
@@ -157,7 +157,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
 
           {/* Error Message display */}
           {isError && progress.error && (
-            <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-700/50 text-rose-300 text-xs font-mono">
+            <div className="p-3.5 rounded-md bg-rose-950/50 border border-rose-700/50 text-rose-300 text-xs font-mono">
               {progress.error}
             </div>
           )}
@@ -168,14 +168,14 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
           {!isCompleted && !isError ? (
             <button
               onClick={onCancel}
-              className="px-4 py-2 rounded-xl bg-surface-elevated hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-border hover:border-rose-700/50 text-xs font-bold transition-all"
+              className="px-4 py-2 rounded-md bg-surface-elevated hover:bg-rose-950/40 text-slate-300 hover:text-rose-300 border border-border hover:border-rose-700/50 text-xs font-bold transition-all"
             >
               Cancel Operation
             </button>
           ) : (
             <button
               onClick={onClose}
-              className="px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-md shadow-primary/20"
+              className="px-5 py-2 rounded-md bg-primary hover:bg-primary-hover text-zinc-950 text-xs font-bold transition-all shadow-md shadow-primary/20"
             >
               Close
             </button>

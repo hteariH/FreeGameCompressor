@@ -43,9 +43,9 @@ export const GameCard: React.FC<GameCardProps> = ({
   onLaunch,
 }) => {
   return (
-    <div className="glass-card rounded-2xl overflow-hidden flex flex-col group relative">
+    <div className="bg-surface border border-border rounded-md overflow-hidden flex flex-col group relative">
       {/* Cover / Header Banner */}
-      <div className="relative h-36 w-full bg-gradient-to-br from-surface to-surface-elevated overflow-hidden flex items-center justify-center">
+      <div className="relative h-36 w-full bg-surface-elevated  -elevated overflow-hidden flex items-center justify-center">
         {game.coverImage ? (
           <img
             src={game.coverImage}
@@ -64,7 +64,7 @@ export const GameCard: React.FC<GameCardProps> = ({
         )}
 
         {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-surface-elevated    opacity-80" />
 
         {/* Platform badge */}
         <div className="absolute top-3 left-3">
@@ -105,7 +105,7 @@ export const GameCard: React.FC<GameCardProps> = ({
         </div>
 
         {/* Size stats */}
-        <div className="bg-surface-elevated/70 rounded-xl p-3 border border-border/80 flex items-center justify-between">
+        <div className="bg-surface-elevated/70 rounded-md p-3 border border-border/80 flex items-center justify-between">
           <div>
             <div className="text-[10px] uppercase font-bold text-slate-400">Current Size</div>
             <div className="text-sm font-extrabold text-slate-100 mt-0.5">
@@ -156,7 +156,7 @@ export const GameCard: React.FC<GameCardProps> = ({
           ) : (
             <button
               onClick={() => onCompress(game)}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-primary hover:bg-primary-hover text-white font-semibold text-xs transition-all shadow-md shadow-primary/20"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-primary hover:bg-primary-hover text-zinc-950 font-semibold text-xs transition-all shadow-md shadow-primary/20"
               title="Compress game files transparently"
             >
               <Zap className="w-3.5 h-3.5" />

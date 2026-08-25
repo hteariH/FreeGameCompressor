@@ -62,7 +62,7 @@ export const BatchQueueModal: React.FC<BatchQueueModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-border bg-surface-elevated/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 rounded-md bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shadow-sm">
               <Layers className="w-5 h-5" />
             </div>
             <div>
@@ -73,7 +73,7 @@ export const BatchQueueModal: React.FC<BatchQueueModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-surface-hover transition-colors"
+            className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-surface-hover transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -126,7 +126,7 @@ export const BatchQueueModal: React.FC<BatchQueueModalProps> = ({
               <div
                 key={game.id}
                 onClick={() => toggleSelect(game.id)}
-                className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                className={`p-3.5 rounded-md border flex items-center justify-between cursor-pointer transition-all ${
                   isSelected
                     ? 'bg-primary/10 border-primary/60 text-slate-100'
                     : 'bg-surface-elevated/40 border-border text-slate-400 hover:border-border-light'
@@ -174,7 +174,7 @@ export const BatchQueueModal: React.FC<BatchQueueModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
+              className="px-4 py-2 rounded-md bg-surface-elevated hover:bg-surface-hover text-slate-300 border border-border text-xs font-bold transition-all"
             >
               Cancel
             </button>
@@ -184,7 +184,7 @@ export const BatchQueueModal: React.FC<BatchQueueModalProps> = ({
                 onClose();
                 onStartBatch(selectedGames, algorithm);
               }}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-lg shadow-primary/25 disabled:opacity-40"
+              className="flex items-center gap-1.5 px-5 py-2 rounded-md bg-primary hover:bg-primary-hover text-zinc-950 text-xs font-bold transition-all shadow-sm shadow-primary/25 disabled:opacity-40"
             >
               <Zap className="w-4 h-4" />
               <span>Start Batch ({selectedGames.length})</span>

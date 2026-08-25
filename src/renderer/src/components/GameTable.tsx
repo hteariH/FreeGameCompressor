@@ -62,7 +62,7 @@ export const GameTable: React.FC<GameTableProps> = ({
 
   return (
     <div className="p-6 pt-2">
-      <div className="glass-panel rounded-2xl overflow-hidden border border-border">
+      <div className="bg-surface border border-border rounded-md overflow-hidden border border-border">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-200">
             <thead className="bg-surface-elevated text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-border select-none">
@@ -180,7 +180,7 @@ export const GameTable: React.FC<GameTableProps> = ({
                       ) : (
                         <button
                           onClick={() => onCompress(game)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-bold transition-all shadow-sm"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-zinc-950 text-xs font-bold transition-all shadow-sm"
                           title="Compress"
                         >
                           <Zap className="w-3.5 h-3.5" />
