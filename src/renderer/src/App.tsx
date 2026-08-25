@@ -279,7 +279,7 @@ export const App: React.FC = () => {
   const uncompressedCount = games.filter(g => !g.isCompressed).length;
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-background text-slate-100 overflow-hidden select-none">
+    <div className="flex flex-col min-h-screen w-full bg-background text-slate-100 select-none">
       {/* Top Navigation Bar */}
       <Header
         searchQuery={searchQuery}
@@ -299,7 +299,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-12">
+      <main className="flex-1 pb-12">
         {/* Storage Stats Dashboard */}
         <StatsOverview games={games} drives={drives} />
 
