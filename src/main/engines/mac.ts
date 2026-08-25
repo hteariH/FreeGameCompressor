@@ -2,6 +2,7 @@ import { spawn, ChildProcess, exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress } from '../../renderer/src/types';
 import { calculateDirectorySize } from './size';
 
@@ -25,6 +26,11 @@ export class MacCompressionEngine {
       // Create temporary compressed clone and atomic replace or in-place ditto
       const tmpPath = `${game.installPath}.compressing_tmp`;
       const proc = spawn('ditto', ['--hfsCompression', game.installPath, tmpPath]);
+      if (proc.pid) {
+        try {
+          os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+        } catch {}
+      }
       activeJobs.set(game.id, proc);
 
       onProgress({
@@ -98,6 +104,11 @@ export class MacCompressionEngine {
     return new Promise((resolve) => {
       const tmpPath = `${game.installPath}.decompressing_tmp`;
       const proc = spawn('ditto', ['--noHFSCompression', game.installPath, tmpPath]);
+      if (proc.pid) {
+        try {
+          os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+        } catch {}
+      }
       activeJobs.set(game.id, proc);
 
       proc.on('close', (code) => {

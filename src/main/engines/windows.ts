@@ -1,5 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorithm } from '../../renderer/src/types';
 import { calculateDirectorySize, getCompressionStats } from './size';
 
@@ -38,11 +39,17 @@ export class WindowsCompressionEngine {
     const args = ['/c', `/s:${game.installPath}`, '/a', '/i', '/f', `/exe:${algorithm}`, '*'];
 
     return new Promise((resolve) => {
-      // Spawn compact.exe
+      // Spawn compact.exe with hidden window and below-normal priority for zero CPU/SSD lag
       const proc = spawn('compact.exe', args, {
         cwd: game.installPath,
         windowsHide: true,
       });
+
+      if (proc.pid) {
+        try {
+          os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+        } catch {}
+      }
 
       activeJobs.set(game.id, proc);
 
@@ -176,6 +183,12 @@ export class WindowsCompressionEngine {
         windowsHide: true,
       });
 
+      if (proc.pid) {
+        try {
+          os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+        } catch {}
+      }
+
       activeJobs.set(game.id, proc);
 
       let buffer = '';
@@ -218,6 +231,11 @@ export class WindowsCompressionEngine {
             cwd: game.installPath,
             windowsHide: true,
           });
+          if (proc2.pid) {
+            try {
+              os.setPriority(proc2.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+            } catch {}
+          }
           proc2.on('close', () => {
             onProgress({
               gameId: game.id,

@@ -1,5 +1,6 @@
 import { spawn, ChildProcess, exec } from 'child_process';
 import { promisify } from 'util';
+import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress } from '../../renderer/src/types';
 import { calculateDirectorySize } from './size';
 
@@ -42,9 +43,14 @@ export class LinuxCompressionEngine {
         } catch {}
       }
 
-      // Run recursive defragment with zstd compression
+      // Run recursive defragment with zstd compression at low priority
       return new Promise((resolve) => {
         const proc = spawn('btrfs', ['filesystem', 'defragment', '-r', '-czstd', game.installPath]);
+        if (proc.pid) {
+          try {
+            os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
+          } catch {}
+        }
         activeJobs.set(game.id, proc);
 
         onProgress({
