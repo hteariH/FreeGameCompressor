@@ -5,12 +5,7 @@ import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorith
 import { calculateDirectorySize, getCompressionStats } from './size';
 import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
-import { throttleProcess, warmUpThrottler } from '../utils/processPriority';
-
-// Pre-warm the PowerShell throttler at module load time.
-// By the time the user clicks "Compress", PowerShell is fully loaded and
-// can apply affinity + Background I/O Mode in ~5ms instead of ~500ms.
-warmUpThrottler();
+import { spawnThrottledCompact } from '../utils/processPriority';
 
 const activeJobs = new Map<string, ChildProcess>();
 
@@ -52,14 +47,7 @@ export class WindowsCompressionEngine {
     const cpuLimit = options.cpuLimitPercentage || 30;
 
     return new Promise((resolve) => {
-      const proc = spawn('compact.exe', args, {
-        cwd: game.installPath,
-        windowsHide: true,
-      });
-
-      // Immediately throttle: set CPU priority to IDLE (instant, ~1μs via libuv),
-      // then set CPU affinity + Background I/O Mode (VERY_LOW disk priority)
-      throttleProcess(proc.pid, cpuLimit);
+      const proc = spawnThrottledCompact(args, game.installPath, cpuLimit);
 
       activeJobs.set(game.id, proc);
 
@@ -205,12 +193,7 @@ export class WindowsCompressionEngine {
     const cpuLimit = options?.cpuLimitPercentage || 30;
 
     return new Promise((resolve) => {
-      const proc = spawn('compact.exe', argsExe, {
-        cwd: game.installPath,
-        windowsHide: true,
-      });
-
-      throttleProcess(proc.pid, cpuLimit);
+      const proc = spawnThrottledCompact(argsExe, game.installPath, cpuLimit);
 
       activeJobs.set(game.id, proc);
 
@@ -250,11 +233,7 @@ export class WindowsCompressionEngine {
         activeJobs.delete(game.id);
         // Also run standard uncompress flag to remove any NTFS directory marks
         try {
-          const proc2 = spawn('compact.exe', ['/u', `/s:${game.installPath}`, '/a', '/i', '*'], {
-            cwd: game.installPath,
-            windowsHide: true,
-          });
-          throttleProcess(proc2.pid, cpuLimit);
+          const proc2 = spawnThrottledCompact(['/u', `/s:${game.installPath}`, '/a', '/i', '*'], game.installPath, cpuLimit);
           proc2.on('close', () => {
             try {
               restoreDirectoryTimestamps(savedTimestamps);
