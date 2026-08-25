@@ -5,6 +5,7 @@ import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorith
 import { calculateDirectorySize, getCompressionStats } from './size';
 import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
+import { setProcessLowPriorityAndAffinity } from '../utils/processPriority';
 
 const activeJobs = new Map<string, ChildProcess>();
 
@@ -44,17 +45,13 @@ export class WindowsCompressionEngine {
     const args = ['/c', `/s:${game.installPath}`, '/a', '/i', '/f', `/exe:${algorithm}`, '*'];
 
     return new Promise((resolve) => {
-      // Spawn compact.exe with hidden window and below-normal priority for zero CPU/SSD lag
+      // Spawn compact.exe with hidden window, low priority and affinity mask (free Core 0 for Wi-Fi / OS)
       const proc = spawn('compact.exe', args, {
         cwd: game.installPath,
         windowsHide: true,
       });
 
-      if (proc.pid) {
-        try {
-          os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
-        } catch {}
-      }
+      setProcessLowPriorityAndAffinity(proc.pid);
 
       activeJobs.set(game.id, proc);
 
@@ -200,11 +197,7 @@ export class WindowsCompressionEngine {
         windowsHide: true,
       });
 
-      if (proc.pid) {
-        try {
-          os.setPriority(proc.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
-        } catch {}
-      }
+      setProcessLowPriorityAndAffinity(proc.pid);
 
       activeJobs.set(game.id, proc);
 
@@ -248,11 +241,7 @@ export class WindowsCompressionEngine {
             cwd: game.installPath,
             windowsHide: true,
           });
-          if (proc2.pid) {
-            try {
-              os.setPriority(proc2.pid, os.constants.priority.PRIORITY_BELOW_NORMAL);
-            } catch {}
-          }
+          setProcessLowPriorityAndAffinity(proc2.pid);
           proc2.on('close', () => {
             try {
               restoreDirectoryTimestamps(savedTimestamps);
