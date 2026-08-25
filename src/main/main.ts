@@ -8,6 +8,7 @@ import { CompressionEngineManager } from './engines';
 import { getCompressionStats } from './engines/size';
 import { getDriveInfos } from './utils/disk';
 import { communityService } from './services/community';
+import { shutdownThrottler } from './utils/processPriority';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -133,6 +134,10 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('will-quit', () => {
+  shutdownThrottler();
 });
 
 // IPC Handler Registrations

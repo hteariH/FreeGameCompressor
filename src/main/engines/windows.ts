@@ -5,7 +5,12 @@ import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorith
 import { calculateDirectorySize, getCompressionStats } from './size';
 import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
-import { throttleProcess } from '../utils/processPriority';
+import { throttleProcess, warmUpThrottler } from '../utils/processPriority';
+
+// Pre-warm the PowerShell throttler at module load time.
+// By the time the user clicks "Compress", PowerShell is fully loaded and
+// can apply affinity + Background I/O Mode in ~5ms instead of ~500ms.
+warmUpThrottler();
 
 const activeJobs = new Map<string, ChildProcess>();
 
