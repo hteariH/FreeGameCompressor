@@ -52,6 +52,43 @@ export async function calculateDirectorySize(dirPath: string): Promise<{ totalBy
   return { totalBytes, fileCount };
 }
 
+export async function scanGameDirectory(dirPath: string): Promise<{
+  files: string[];
+  totalBytes: number;
+  timestamps: Map<string, { atimeMs: number; mtimeMs: number }>;
+}> {
+  const files: string[] = [];
+  let totalBytes = 0;
+  const timestamps = new Map<string, { atimeMs: number; mtimeMs: number }>();
+
+  async function walk(currentPath: string) {
+    try {
+      const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(currentPath, entry.name);
+        try {
+          if (entry.isDirectory()) {
+            await walk(fullPath);
+          } else if (entry.isFile()) {
+            const stat = await fs.promises.stat(fullPath);
+            files.push(fullPath);
+            totalBytes += stat.size;
+            timestamps.set(fullPath, { atimeMs: stat.atimeMs, mtimeMs: stat.mtimeMs });
+            
+            // Limit to ~1000 stats/sec to prevent Defender NAT/Port exhaustion
+            if (files.length % 50 === 0) {
+              await new Promise(r => setTimeout(r, 50));
+            }
+          }
+        } catch { }
+      }
+    } catch { }
+  }
+
+  await walk(dirPath);
+  return { files, totalBytes, timestamps };
+}
+
 export async function getAllFiles(dirPath: string): Promise<string[]> {
   const files: string[] = [];
 

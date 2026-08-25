@@ -2,8 +2,8 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorithm } from '../../renderer/src/types';
-import { calculateDirectorySize, getCompressionStats, getAllFiles } from './size';
-import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
+import { calculateDirectorySize, getCompressionStats, scanGameDirectory } from './size';
+import { restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
 import { spawnThrottledCompact } from '../utils/processPriority';
 
@@ -20,15 +20,14 @@ export class WindowsCompressionEngine {
     isCancelled.delete(game.id);
     activeJobs.set(game.id, 'pending');
     
-    const files = await getAllFiles(game.installPath);
+    // ONE SINGLE DIRECTORY WALK (Ultra-throttled to prevent Windows Defender network/NAT flooding)
+    const { files, totalBytes, timestamps } = await scanGameDirectory(game.installPath);
     if (files.length === 0) {
       activeJobs.delete(game.id);
       return { success: true };
     }
     
-    const { totalBytes } = await calculateDirectorySize(game.installPath);
     const totalFiles = files.length;
-    
     let processedFiles = 0;
     let processedBytes = 0;
     let savedBytes = 0;
@@ -38,9 +37,9 @@ export class WindowsCompressionEngine {
     let speedBytesPerSec = 0;
     let lastIpcTime = 0;
 
-    const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
     const cpuLimit = options.cpuLimitPercentage || 30;
 
+    // Small chunks to prevent compact.exe from locking the system for too long
     const CHUNK_SIZE = 50;
 
     for (let i = 0; i < files.length; i += CHUNK_SIZE) {
@@ -112,8 +111,10 @@ export class WindowsCompressionEngine {
         proc.on('error', () => resolveChunk());
       });
 
-      // The Magic Pause: Absolute Wi-Fi savior
-      await new Promise(r => setTimeout(r, 50));
+      // The Magic Pause: Router NAT / Defender Cloud Protection Savior
+      // We wait 200ms after every 50 files. This limits Defender to ~250 lookups/sec.
+      // This prevents the router's NAT table and Windows TCP stack from overflowing!
+      await new Promise(r => setTimeout(r, 200));
     }
 
     activeJobs.delete(game.id);
@@ -124,7 +125,7 @@ export class WindowsCompressionEngine {
     }
 
     try {
-      restoreDirectoryTimestamps(savedTimestamps);
+      restoreDirectoryTimestamps(timestamps);
     } catch {}
 
     if (game.platform === 'steam') {
@@ -159,20 +160,17 @@ export class WindowsCompressionEngine {
     isCancelled.delete(game.id);
     activeJobs.set(game.id, 'pending');
 
-    const files = await getAllFiles(game.installPath);
+    const { files, totalBytes, timestamps } = await scanGameDirectory(game.installPath);
     if (files.length === 0) {
       activeJobs.delete(game.id);
       return { success: true };
     }
 
-    const { totalBytes } = await calculateDirectorySize(game.installPath);
     const totalFiles = files.length;
     let processedFiles = 0;
     let lastIpcTime = 0;
 
-    const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
     const cpuLimit = options?.cpuLimitPercentage || 30;
-
     const CHUNK_SIZE = 50;
 
     for (let i = 0; i < files.length; i += CHUNK_SIZE) {
@@ -224,8 +222,7 @@ export class WindowsCompressionEngine {
         proc.on('error', () => resolveChunk());
       });
 
-      // Pause for Wi-Fi stability
-      await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 200));
     }
 
     if (isCancelled.has(game.id)) {
@@ -243,7 +240,7 @@ export class WindowsCompressionEngine {
     activeJobs.delete(game.id);
 
     try {
-      restoreDirectoryTimestamps(savedTimestamps);
+      restoreDirectoryTimestamps(timestamps);
     } catch {}
 
     if (game.platform === 'steam') {
