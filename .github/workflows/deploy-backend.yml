@@ -33,8 +33,9 @@ jobs:
             
             if [ -d "$APP_DIR/.git" ]; then
               cd "$APP_DIR"
-              git fetch --all
+              git fetch --prune origin main
               git reset --hard origin/main
+              git clean -fd
             else
               rm -rf "$APP_DIR"
               git clone https://github.com/hteariH/FreeGameCompressor.git "$APP_DIR"
