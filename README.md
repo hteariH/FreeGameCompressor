@@ -19,10 +19,10 @@ Get the latest pre-built binaries directly for your operating system:
 
 | Operating System | Format | Download Link | Description |
 | :--- | :--- | :--- | :--- |
-| **Windows 10 / 11** | 🚀 **Setup Installer (.exe)** | [**Download Installer**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/FreeGameCompressor.Setup.1.1.11.exe) | Standard Windows NSIS Setup |
-| **Windows 10 / 11** | 💼 **Portable (.exe)** | [**Download Portable**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/FreeGameCompressor.1.1.11.exe) | No installation needed (run anywhere) |
-| **Linux (Any Distro)** | 🐧 **AppImage** | [**Download AppImage**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/FreeGameCompressor-1.1.11.AppImage) | Universal standalone Linux executable (`chmod +x`) |
-| **Linux (Ubuntu / Debian)** | 📦 **Debian Package (.deb)** | [**Download .deb**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/free-game-compressor_1.1.11_amd64.deb) | Install via `sudo apt install ./file.deb` |
+| **Windows 10 / 11** | 🚀 **Setup Installer (.exe)** | [**Download Installer**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/FreeGameCompressor.Setup.1.1.12.exe) | Standard Windows NSIS Setup |
+| **Windows 10 / 11** | 💼 **Portable (.exe)** | [**Download Portable**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/FreeGameCompressor.1.1.12.exe) | No installation needed (run anywhere) |
+| **Linux (Any Distro)** | 🐧 **AppImage** | [**Download AppImage**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/FreeGameCompressor-1.1.12.AppImage) | Universal standalone Linux executable (`chmod +x`) |
+| **Linux (Ubuntu / Debian)** | 📦 **Debian Package (.deb)** | [**Download .deb**](https://github.com/hteariH/FreeGameCompressor/releases/latest/download/free-game-compressor_1.1.12_amd64.deb) | Install via `sudo apt install ./file.deb` |
 | **macOS (Apple Silicon & Intel)** | 🍏 **DMG & Zip** | [**Download macOS Releases**](https://github.com/hteariH/FreeGameCompressor/releases/latest) | Apple Silicon (M1/M2/M3/M4) & Intel DMG |
 
 👉 **[View All Release Assets & Changelogs](https://github.com/hteariH/FreeGameCompressor/releases/latest)**

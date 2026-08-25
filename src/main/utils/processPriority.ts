@@ -1,51 +1,65 @@
-import { execSync, exec } from 'child_process';
+import { execSync } from 'child_process';
 import os from 'os';
 
 /**
- * Sets process priority to Low (IDLE_PRIORITY_CLASS) and restricts CPU core affinity
- * to 50% of available cores while strictly leaving Core 0 and Core 1 completely untouched.
- * 
- * Why this is necessary:
- * On Windows, Wi-Fi drivers (Intel AX200/AX210, Realtek, MediaTek) handle network packet
- * processing and keepalive beacon ISRs/DPCs on Cores 0 and 1. When multi-threaded LZX
- * compression pegs 100% of CPU cores and saturates PCIe DMA queues, network drivers time out,
- * causing Wi-Fi disconnection.
- * 
- * Freeing Cores 0 & 1 and capping compression to 50% of CPU threads guarantees 100% stable Wi-Fi,
- * cool temperatures, and zero system lag.
+ * Calculates the CPU affinity mask for a given cpuLimitPercentage.
+ * Always skips Cores 0 and 1 (reserved for Wi-Fi NDIS drivers and OS interrupts).
+ * Returns the mask as a hex string (e.g. "0x3C") suitable for cmd.exe `start /affinity`.
  */
-export function setProcessLowPriorityAndAffinity(pid?: number) {
-  if (!pid) return;
+export function calculateAffinityHex(cpuLimitPercentage: number = 30): string {
+  const coreCount = os.cpus().length;
 
-  // 1. Immediately drop Process Scheduling Priority to LOW (IDLE_PRIORITY_CLASS)
+  if (coreCount < 4) {
+    // On 2-core machines, we can't skip cores — use all but set low priority
+    return ((1 << coreCount) - 1).toString(16).toUpperCase();
+  }
+
+  // Calculate how many cores to use based on percentage (min 1 core)
+  const usableCores = coreCount - 2; // exclude cores 0 & 1
+  const targetCores = Math.max(1, Math.round((cpuLimitPercentage / 100) * coreCount));
+  const coresToUse = Math.min(targetCores, usableCores);
+
+  // Build bitmask starting from core 2
+  let mask = 0n;
+  for (let i = 2; i < 2 + coresToUse && i < coreCount; i++) {
+    mask |= (1n << BigInt(i));
+  }
+
+  // Fallback: at least use core 2
+  if (mask === 0n) mask = 4n; // core 2 only
+
+  return mask.toString(16).toUpperCase();
+}
+
+/**
+ * Enables Windows PROCESS_MODE_BACKGROUND_BEGIN on a process.
+ * This drops I/O priority to VERY_LOW and memory priority to VERY_LOW,
+ * preventing disk I/O storms from saturating the PCIe bus and killing Wi-Fi.
+ * 
+ * This is the key fix: CPU affinity alone doesn't help because the I/O bandwidth
+ * from NVMe SSD read/write saturates the shared PCIe root complex that the 
+ * Wi-Fi adapter also uses (Intel CNVi, USB-attached adapters, etc).
+ */
+export function enableBackgroundMode(pid: number): void {
+  if (process.platform !== 'win32' || !pid) return;
+
   try {
-    os.setPriority(pid, os.constants.priority.PRIORITY_LOW);
-  } catch {}
-
-  // 2. Set strict CPU core affinity on Windows
-  if (process.platform === 'win32') {
-    try {
-      const coreCount = os.cpus().length;
-      if (coreCount >= 4) {
-        // Use 50% of cores, starting from Core 2 (leaving Cores 0 and 1 completely free)
-        const usedCores = Math.max(2, Math.floor(coreCount / 2));
-        let mask = 0n;
-        for (let i = 2; i < 2 + usedCores && i < coreCount; i++) {
-          mask |= (1n << BigInt(i));
-        }
-        if (mask === 0n) mask = 3n;
-
-        // Apply immediately so compact.exe never bursts on all cores
-        try {
-          execSync(
-            `powershell -NoProfile -NonInteractive -Command "(Get-Process -Id ${pid} -ErrorAction SilentlyContinue).ProcessorAffinity = ${mask.toString()}"`,
-            { timeout: 1500, stdio: 'ignore' }
-          );
-        } catch {
-          // Fallback to async if sync had an issue
-          exec(`powershell -NoProfile -NonInteractive -Command "(Get-Process -Id ${pid} -ErrorAction SilentlyContinue).ProcessorAffinity = ${mask.toString()}"`, () => {});
-        }
-      }
-    } catch {}
+    // Use .NET interop to call SetPriorityClass with PROCESS_MODE_BACKGROUND_BEGIN (0x00100000)
+    // This sets: CPU=Idle, I/O=VeryLow, Memory=VeryLow — the trifecta for Wi-Fi safety
+    execSync(
+      `powershell -NoProfile -NonInteractive -Command "` +
+      `$p = [System.Diagnostics.Process]::GetProcessById(${pid}); ` +
+      `$p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::Idle; ` +
+      `$handle = $p.Handle; ` +
+      `$code = Add-Type -MemberDefinition '` +
+        `[DllImport(\\\"kernel32.dll\\\")] public static extern bool SetPriorityClass(IntPtr h, uint c);` +
+      `' -Name W -Namespace K -PassThru; ` +
+      `$code::SetPriorityClass($handle, 0x00100000)` +
+      `"`,
+      { timeout: 3000, stdio: 'ignore' }
+    );
+  } catch {
+    // Fallback: at least set Idle priority via Node.js API
+    try { os.setPriority(pid, os.constants.priority.PRIORITY_LOW); } catch {}
   }
 }
