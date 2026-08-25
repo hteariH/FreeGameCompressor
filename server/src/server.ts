@@ -22,19 +22,20 @@ app.post('/api/v1/report', (req: Request, res: Response) => {
   try {
     const { gameId, gameName, appId, platform, uncompressedBytes, compressedBytes, savedBytes, ratio, algorithm, os } = req.body;
 
-    if (!gameId || !gameName || uncompressedBytes === undefined || compressedBytes === undefined) {
-      return res.status(400).json({ error: 'Missing required report fields' });
-    }
+    const uncomp = Number(uncompressedBytes);
+    const comp = Number(compressedBytes);
+    const saved = Number(savedBytes !== undefined ? savedBytes : Math.max(0, uncomp - comp));
+    const calculatedRatio = comp > 0 ? (uncomp / comp) : (Number(ratio) || 1.0);
 
     recordReport({
       gameId: String(gameId),
       gameName: String(gameName),
       appId: appId ? String(appId) : undefined,
       platform: platform || 'custom',
-      uncompressedBytes: Number(uncompressedBytes),
-      compressedBytes: Number(compressedBytes),
-      savedBytes: Number(savedBytes || Math.max(0, uncompressedBytes - compressedBytes)),
-      ratio: Number(ratio || (compressedBytes > 0 ? uncompressedBytes / compressedBytes : 1.0)),
+      uncompressedBytes: uncomp,
+      compressedBytes: comp,
+      savedBytes: saved,
+      ratio: Math.round(calculatedRatio * 100) / 100,
       algorithm: String(algorithm || 'LZX'),
       os: String(os || 'windows'),
     });

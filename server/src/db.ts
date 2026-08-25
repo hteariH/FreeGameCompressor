@@ -191,16 +191,16 @@ export function getGlobalOverview() {
   `).get() as any;
 
   const topGames = db.prepare(`
-    SELECT game_name, total_submissions, avg_saved_bytes, avg_ratio, best_algorithm
+    SELECT game_name, total_submissions, avg_saved_bytes, ROUND(avg_ratio, 2) as avg_ratio, best_algorithm
     FROM game_stats
     ORDER BY total_submissions DESC, avg_saved_bytes DESC
-    LIMIT 5
+    LIMIT 10
   `).all();
 
   return {
     totalReports: globalStats.total_reports,
     totalSavedBytes: globalStats.total_saved_bytes,
-    averageRatio: Math.round(globalStats.avg_ratio * 100) / 100,
+    averageRatio: Math.round((globalStats.avg_ratio || 1.0) * 100) / 100,
     topGames,
   };
 }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import type { Game, CompressionOptions, CompressionProgress, AppSettings } from '../renderer/src/types';
 import { scanAllGames, scanCustomFolder } from './scanners';
 import { CompressionEngineManager } from './engines';
+import { getCompressionStats } from './engines/size';
 import { getDriveInfos } from './utils/disk';
 import { communityService } from './services/community';
 
@@ -235,17 +236,25 @@ ipcMain.handle('compress-game', async (_event, game: Game, options: CompressionO
   if (result.success) {
     const currentSettings = loadSettings();
     if (currentSettings.shareAnonymousStats) {
-      communityService.submitReport({
-        gameId: game.id,
-        gameName: game.name,
-        appId: game.appId,
-        platform: game.platform,
-        uncompressedBytes: game.uncompressedSize,
-        compressedBytes: game.uncompressedSize - (game.savedBytes || 0),
-        savedBytes: game.savedBytes || 0,
-        ratio: game.compressionRatio || 1.45,
-        algorithm: options.algorithm || 'LZX',
-        os: process.platform,
+      // Calculate actual post-compression disk space stats
+      getCompressionStats(game.installPath).then((stats) => {
+        const uncomp = stats.uncompressedSize > 0 ? stats.uncompressedSize : game.uncompressedSize;
+        const comp = stats.compressedSize > 0 ? stats.compressedSize : (uncomp - (stats.savedBytes || 0));
+        const saved = Math.max(0, uncomp - comp);
+        const realRatio = comp > 0 ? (uncomp / comp) : 1.0;
+
+        communityService.submitReport({
+          gameId: game.id,
+          gameName: game.name,
+          appId: game.appId,
+          platform: game.platform,
+          uncompressedBytes: uncomp,
+          compressedBytes: comp,
+          savedBytes: saved,
+          ratio: Math.round(realRatio * 100) / 100,
+          algorithm: options.algorithm || 'LZX',
+          os: process.platform,
+        }).catch(() => {});
       }).catch(() => {});
     }
   }
