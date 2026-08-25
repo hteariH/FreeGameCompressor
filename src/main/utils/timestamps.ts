@@ -9,34 +9,44 @@ export interface FileTimestamps {
 /**
  * Recursively captures all file atime and mtime timestamps within a directory
  */
-export function captureDirectoryTimestamps(dirPath: string): Map<string, FileTimestamps> {
+export async function captureDirectoryTimestamps(dirPath: string): Promise<Map<string, FileTimestamps>> {
   const timestamps = new Map<string, FileTimestamps>();
   if (!fs.existsSync(dirPath)) return timestamps;
 
-  function walk(currentDir: string) {
+  let fileCount = 0;
+
+  async function walk(currentDir: string) {
     try {
-      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      const entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(currentDir, entry.name);
         try {
-          const stat = fs.statSync(fullPath);
-          timestamps.set(fullPath, {
-            atimeMs: stat.atimeMs,
-            mtimeMs: stat.mtimeMs,
-          });
           if (entry.isDirectory()) {
-            walk(fullPath);
+            await walk(fullPath);
+          } else if (entry.isFile()) {
+            const stat = await fs.promises.stat(fullPath);
+            timestamps.set(fullPath, {
+              atimeMs: stat.atimeMs,
+              mtimeMs: stat.mtimeMs,
+            });
+            
+            fileCount++;
+            // Throttle the I/O storm: pause 5ms every 50 files
+            // This prevents fs.stat from saturating the NVMe/PCIe bus and dropping Wi-Fi
+            if (fileCount % 50 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 5));
+            }
           }
         } catch {
-          // Ignore unreadable files
+          // ignore unreadable files
         }
       }
     } catch {
-      // Ignore unreadable directory
+      // ignore unreadable dirs
     }
   }
 
-  walk(dirPath);
+  await walk(dirPath);
   return timestamps;
 }
 

@@ -33,7 +33,7 @@ export class WindowsCompressionEngine {
     let speedBytesPerSec = 0;
 
     // Capture exact file timestamps before compression to prevent Steam/Epic from detecting date changes
-    const savedTimestamps = captureDirectoryTimestamps(game.installPath);
+    const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
 
     // Build compact.exe arguments
     // /c : Compress
@@ -186,7 +186,7 @@ export class WindowsCompressionEngine {
     let processedFiles = 0;
 
     // Capture exact file timestamps before decompression
-    const savedTimestamps = captureDirectoryTimestamps(game.installPath);
+    const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
 
     // Decompress WOF and NTFS compressed files
     const argsExe = ['/u', `/s:${game.installPath}`, '/a', '/i', '/exe', '*'];

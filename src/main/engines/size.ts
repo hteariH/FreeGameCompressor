@@ -32,6 +32,12 @@ export async function calculateDirectorySize(dirPath: string): Promise<{ totalBy
             const stats = await fs.promises.stat(fullPath);
             totalBytes += stats.size;
             fileCount++;
+
+            // Throttle the I/O storm: pause 5ms every 50 files
+            // Prevents NVMe bus saturation before compact.exe even starts
+            if (fileCount % 50 === 0) {
+              await new Promise(resolve => setTimeout(resolve, 5));
+            }
           }
         } catch {
           // skip inaccessible files
