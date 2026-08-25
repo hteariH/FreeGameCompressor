@@ -31,6 +31,7 @@ export class WindowsCompressionEngine {
     let lastTime = startTime;
     let bytesSinceLast = 0;
     let speedBytesPerSec = 0;
+    let lastIpcTime = 0;
 
     // Capture exact file timestamps before compression to prevent Steam/Epic from detecting date changes
     const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
@@ -86,21 +87,24 @@ export class WindowsCompressionEngine {
             const remainingBytes = Math.max(0, totalBytes - processedBytes);
             const estimatedRemainingSeconds = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
 
-            onProgress({
-              gameId: game.id,
-              gameName: game.name,
-              currentFile: fileName,
-              processedFiles,
-              totalFiles,
-              processedBytes,
-              totalBytes,
-              savedBytes,
-              percentage,
-              speedBytesPerSec,
-              estimatedRemainingSeconds,
-              status: 'compressing',
-              algorithm,
-            });
+            if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
+              lastIpcTime = now;
+              onProgress({
+                gameId: game.id,
+                gameName: game.name,
+                currentFile: fileName,
+                processedFiles,
+                totalFiles,
+                processedBytes,
+                totalBytes,
+                savedBytes,
+                percentage,
+                speedBytesPerSec,
+                estimatedRemainingSeconds,
+                status: 'compressing',
+                algorithm,
+              });
+            }
           }
         }
       });
@@ -184,6 +188,7 @@ export class WindowsCompressionEngine {
     const { totalBytes, fileCount } = await calculateDirectorySize(game.installPath);
     const totalFiles = Math.max(fileCount, 1);
     let processedFiles = 0;
+    let lastIpcTime = 0;
 
     // Capture exact file timestamps before decompression
     const savedTimestamps = await captureDirectoryTimestamps(game.installPath);
@@ -210,21 +215,25 @@ export class WindowsCompressionEngine {
           if (trimmed.includes('[OK]') || trimmed.includes(':')) {
             processedFiles++;
             const percentage = Math.min(95, Math.round((processedFiles / totalFiles) * 100));
-            onProgress({
-              gameId: game.id,
-              gameName: game.name,
-              currentFile: trimmed.split(/\s+/)[0] || 'Uncompressing...',
-              processedFiles,
-              totalFiles,
-              processedBytes: 0,
-              totalBytes,
-              savedBytes: 0,
-              percentage,
-              speedBytesPerSec: 0,
-              estimatedRemainingSeconds: 0,
-              status: 'decompressing',
-              algorithm: 'LZX',
-            });
+            const now = Date.now();
+            if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
+              lastIpcTime = now;
+              onProgress({
+                gameId: game.id,
+                gameName: game.name,
+                currentFile: trimmed.split(/\s+/)[0] || 'Uncompressing...',
+                processedFiles,
+                totalFiles,
+                processedBytes: 0,
+                totalBytes,
+                savedBytes: 0,
+                percentage,
+                speedBytesPerSec: 0,
+                estimatedRemainingSeconds: 0,
+                status: 'decompressing',
+                algorithm: 'LZX',
+              });
+            }
           }
         }
       });

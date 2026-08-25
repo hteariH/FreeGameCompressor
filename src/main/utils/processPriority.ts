@@ -21,15 +21,11 @@ import os from 'os';
 const THROTTLE_CS_SOURCE = `
 using System;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
-class ThrottledLauncher {
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    static extern bool CreateProcessW(
-        string lpApplicationName, string lpCommandLine,
-        IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
-        bool bInheritHandles, uint dwCreationFlags,
-        IntPtr lpEnvironment, string lpCurrentDirectory,
-        ref STARTUPINFOW lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
+class Program {
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    static extern bool CreateProcessW(string lpApplicationName, string lpCommandLine, IntPtr lpProcessAttributes, IntPtr lpThreadAttributes, bool bInheritHandles, uint dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, ref STARTUPINFOW lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
 
     [DllImport("kernel32.dll")] static extern uint ResumeThread(IntPtr hThread);
     [DllImport("kernel32.dll")] static extern bool SetPriorityClass(IntPtr h, uint c);
@@ -38,8 +34,15 @@ class ThrottledLauncher {
     [DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr h, out uint code);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
     [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int n);
-    [DllImport("ntdll.dll")] static extern int NtSuspendProcess(IntPtr processHandle);
-    [DllImport("ntdll.dll")] static extern int NtResumeProcess(IntPtr processHandle);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern IntPtr CreateJobObjectW(IntPtr lpJobAttributes, string lpName);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool SetInformationJobObject(IntPtr hJob, int JobObjectInformationClass, ref JOBOBJECT_CPU_RATE_CONTROL_INFORMATION lpJobObjectInformation, int cbJobObjectInformationLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct STARTUPINFOW {
@@ -54,17 +57,21 @@ class ThrottledLauncher {
         public IntPtr hProcess, hThread; public int dwProcessId, dwThreadId;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    struct JOBOBJECT_CPU_RATE_CONTROL_INFORMATION {
+        public uint ControlFlags;
+        public uint CpuRate;
+    }
+
     static int Main(string[] args) {
-        if (args.Length < 3) { Console.Error.WriteLine("Usage: throttle.exe <mask> <cpuLimit> <cmd> [args]"); return 1; }
+        if (args.Length < 3) return 1;
 
         ulong mask = ulong.Parse(args[0]);
         int cpuLimit = int.Parse(args[1]);
         string[] cmdParts = new string[args.Length - 2];
         for (int i = 2; i < args.Length; i++) {
             string arg = args[i];
-            if (arg.Contains(" ") && !arg.StartsWith("\"")) {
-                arg = "\"" + arg + "\"";
-            }
+            if (arg.Contains(" ") && !arg.StartsWith("\"")) arg = "\"" + arg + "\"";
             cmdParts[i - 2] = arg;
         }
         string cmdLine = string.Join(" ", cmdParts);
@@ -77,47 +84,36 @@ class ThrottledLauncher {
         si.hStdError = GetStdHandle(-12);
 
         PROCESS_INFORMATION pi;
-        // CREATE_SUSPENDED (0x4) | IDLE_PRIORITY_CLASS (0x40)
+        // CREATE_SUSPENDED (0x4) | IDLE_PRIORITY_CLASS (0x40) | CREATE_BREAKAWAY_FROM_JOB (0x01000000)
         if (!CreateProcessW(null, cmdLine, IntPtr.Zero, IntPtr.Zero, true,
-            0x00000004 | 0x00000040, IntPtr.Zero, null, ref si, out pi)) {
-            Console.Error.WriteLine("CreateProcess failed: " + Marshal.GetLastWin32Error());
+            0x01000044, IntPtr.Zero, null, ref si, out pi)) {
             return 1;
         }
 
-        // Process is FROZEN here — hasn't executed a single instruction
-
-        // 1. Set CPU affinity (skip cores 0 & 1)
+        // Apply CPU Affinity FIRST. This bounds the Job Object rate limit to these specific cores!
         if (mask > 0) SetProcessAffinityMask(pi.hProcess, (UIntPtr)mask);
 
-        // 2. Set Background I/O Mode: I/O=VeryLow, Memory=VeryLow
+        // Very Low Disk/Mem priority
         SetPriorityClass(pi.hProcess, 0x00100000);
 
-        // 3. Initial resume
+        // Apply HARD Job Object CPU Limit
+        if (cpuLimit < 100) {
+            IntPtr hJob = CreateJobObjectW(IntPtr.Zero, null);
+            if (hJob != IntPtr.Zero) {
+                var info = new JOBOBJECT_CPU_RATE_CONTROL_INFORMATION {
+                    ControlFlags = 0x5, // JOB_OBJECT_CPU_RATE_CONTROL_ENABLE (1) | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP (4)
+                    CpuRate = (uint)(cpuLimit * 100) // 1-10000
+                };
+                if (SetInformationJobObject(hJob, 15, ref info, Marshal.SizeOf<JOBOBJECT_CPU_RATE_CONTROL_INFORMATION>())) {
+                    AssignProcessToJobObject(hJob, pi.hProcess);
+                }
+            }
+        }
+
         ResumeThread(pi.hThread);
         CloseHandle(pi.hThread);
 
-        // 4. ACTIVE DUTY CYCLE THROTTLING (The Ultimate Fix)
-        // If wof.sys is processing I/O in kernel threads, CPU Priority/Affinity on compact.exe
-        // won't stop it from saturating the PCIe bus.
-        // The ONLY way to throttle it is to actively suspend and resume the process,
-        // pausing its generation of I/O requests.
-        if (cpuLimit < 100) {
-            // Use a 50ms cycle to keep it smooth.
-            // 30% limit = 15ms run, 35ms sleep.
-            int runMs = Math.Max(5, (int)(cpuLimit * 0.5));
-            int sleepMs = Math.Max(5, (int)((100 - cpuLimit) * 0.5));
-
-            while (true) {
-                NtResumeProcess(pi.hProcess);
-                if (WaitForSingleObject(pi.hProcess, (uint)runMs) != 0x00000103) break; // Exited!
-                
-                NtSuspendProcess(pi.hProcess);
-                System.Threading.Thread.Sleep(sleepMs);
-            }
-        } else {
-            WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
-        }
-
+        WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
         uint exitCode; GetExitCodeProcess(pi.hProcess, out exitCode);
         CloseHandle(pi.hProcess);
         return (int)exitCode;
@@ -150,7 +146,7 @@ function findCsc(): string | null {
 function ensureLauncher(): string | null {
   if (cachedLauncherPath && fs.existsSync(cachedLauncherPath)) return cachedLauncherPath;
 
-  const cacheDir = path.join(os.tmpdir(), 'fgc-throttle-v3');
+  const cacheDir = path.join(os.tmpdir(), 'fgc-throttle-v4');
   const exePath = path.join(cacheDir, 'throttle_launcher.exe');
   const srcPath = path.join(cacheDir, 'throttle_launcher.cs');
 
