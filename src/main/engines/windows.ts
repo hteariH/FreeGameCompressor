@@ -2,10 +2,9 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorithm } from '../../renderer/src/types';
-import { calculateDirectorySize, getCompressionStats, scanGameDirectory } from './size';
+import { scanGameDirectory } from './size';
 import { restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
-import { spawnThrottledCompact } from '../utils/processPriority';
 
 const activeJobs = new Map<string, ChildProcess | 'pending'>();
 let isCancelled = new Set<string>();
@@ -20,7 +19,22 @@ export class WindowsCompressionEngine {
     isCancelled.delete(game.id);
     activeJobs.set(game.id, 'pending');
     
-    // ONE SINGLE DIRECTORY WALK (Ultra-throttled to prevent Windows Defender network/NAT flooding)
+    onProgress({
+      gameId: game.id,
+      gameName: game.name,
+      currentFile: 'Scanning directory...',
+      processedFiles: 0,
+      totalFiles: 0,
+      processedBytes: 0,
+      totalBytes: 0,
+      savedBytes: 0,
+      percentage: 0,
+      speedBytesPerSec: 0,
+      estimatedRemainingSeconds: 0,
+      status: 'compressing',
+      algorithm,
+    });
+
     const { files, totalBytes, timestamps } = await scanGameDirectory(game.installPath);
     if (files.length === 0) {
       activeJobs.delete(game.id);
@@ -37,84 +51,77 @@ export class WindowsCompressionEngine {
     let speedBytesPerSec = 0;
     let lastIpcTime = 0;
 
-    const cpuLimit = options.cpuLimitPercentage || 30;
-
-    // Small chunks to prevent compact.exe from locking the system for too long
-    const CHUNK_SIZE = 50;
-
-    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+    for (const file of files) {
       if (isCancelled.has(game.id)) break;
 
-      const chunk = files.slice(i, i + CHUNK_SIZE);
-      const args = ['/c', '/a', '/i', '/f', '/exe:' + algorithm, ...chunk];
+      const args = ['/c', '/a', '/i', '/f', '/exe:' + algorithm, file];
+      const fileSize = timestamps.get(file)?.mtimeMs ? (await import('fs')).statSync(file).size : 0; // We have totalBytes from scan
 
-      await new Promise<void>((resolveChunk) => {
-        const proc = spawnThrottledCompact(args, game.installPath, cpuLimit);
+      await new Promise<void>((resolveFile) => {
+        const proc = spawn('compact.exe', args, { windowsHide: true });
         activeJobs.set(game.id, proc);
 
         let buffer = '';
         proc.stdout.on('data', (data: Buffer) => {
           buffer += data.toString();
-          const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-
-            const match = trimmed.match(/^(.*?)\s+(\d+)\s*:\s*(\d+)\s*=\s*[\d\.]+\s*to\s*1\s*\[OK\]/i);
-            if (match) {
-              const fileName = match[1].trim();
-              const origSize = parseInt(match[2], 10);
-              const compSize = parseInt(match[3], 10);
-              
-              processedFiles++;
-              processedBytes += origSize;
-              savedBytes += Math.max(0, origSize - compSize);
-              bytesSinceLast += origSize;
-
-              const now = Date.now();
-              if (now - lastTime >= 500) {
-                const elapsedSec = (now - lastTime) / 1000;
-                speedBytesPerSec = Math.round(bytesSinceLast / elapsedSec);
-                bytesSinceLast = 0;
-                lastTime = now;
-              }
-
-              const percentage = Math.min(99, Math.round((processedFiles / totalFiles) * 100));
-              const remainingBytes = Math.max(0, totalBytes - processedBytes);
-              const estimatedRemainingSeconds = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
-
-              if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
-                lastIpcTime = now;
-                onProgress({
-                  gameId: game.id,
-                  gameName: game.name,
-                  currentFile: fileName,
-                  processedFiles,
-                  totalFiles,
-                  processedBytes,
-                  totalBytes,
-                  savedBytes,
-                  percentage,
-                  speedBytesPerSec,
-                  estimatedRemainingSeconds,
-                  status: 'compressing',
-                  algorithm,
-                });
-              }
-            }
-          }
         });
 
-        proc.on('close', () => resolveChunk());
-        proc.on('error', () => resolveChunk());
+        proc.on('close', () => {
+          // Parse the compact output to get the new size
+          const match = buffer.match(/(\d+)\s*:\s*(\d+)\s*=\s*[\d\.]+\s*to\s*1/i);
+          let origSize = fileSize;
+          let compSize = fileSize;
+          
+          if (match) {
+            origSize = parseInt(match[1], 10);
+            compSize = parseInt(match[2], 10);
+          }
+          
+          processedFiles++;
+          processedBytes += origSize;
+          savedBytes += Math.max(0, origSize - compSize);
+          bytesSinceLast += origSize;
+
+          const now = Date.now();
+          if (now - lastTime >= 500) {
+            const elapsedSec = (now - lastTime) / 1000;
+            speedBytesPerSec = Math.round(bytesSinceLast / elapsedSec);
+            bytesSinceLast = 0;
+            lastTime = now;
+          }
+
+          const percentage = Math.min(99, Math.round((processedFiles / totalFiles) * 100));
+          const remainingBytes = Math.max(0, totalBytes - processedBytes);
+          const estimatedRemainingSeconds = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
+
+          if (now - lastIpcTime >= 50 || processedFiles === totalFiles) {
+            lastIpcTime = now;
+            onProgress({
+              gameId: game.id,
+              gameName: game.name,
+              currentFile: path.basename(file),
+              processedFiles,
+              totalFiles,
+              processedBytes,
+              totalBytes,
+              savedBytes,
+              percentage,
+              speedBytesPerSec,
+              estimatedRemainingSeconds,
+              status: 'compressing',
+              algorithm,
+            });
+          }
+          resolveFile();
+        });
+        
+        proc.on('error', () => resolveFile());
       });
 
-      // The Magic Pause: Router NAT / Defender Cloud Protection Savior
-      // We wait 200ms after every 50 files. This limits Defender to ~250 lookups/sec.
-      // This prevents the router's NAT table and Windows TCP stack from overflowing!
-      await new Promise(r => setTimeout(r, 200));
+      // The Absolute Nuclear Savior: Let the OS breathe after every single file
+      // If a large file was compressed, the system might have starved the Wi-Fi NDIS driver for seconds.
+      // This delay flushes the entire OS networking stack and disk queue!
+      await new Promise(r => setTimeout(r, 20));
     }
 
     activeJobs.delete(game.id);
@@ -160,6 +167,22 @@ export class WindowsCompressionEngine {
     isCancelled.delete(game.id);
     activeJobs.set(game.id, 'pending');
 
+    onProgress({
+      gameId: game.id,
+      gameName: game.name,
+      currentFile: 'Scanning directory...',
+      processedFiles: 0,
+      totalFiles: 0,
+      processedBytes: 0,
+      totalBytes: 0,
+      savedBytes: 0,
+      percentage: 0,
+      speedBytesPerSec: 0,
+      estimatedRemainingSeconds: 0,
+      status: 'decompressing',
+      algorithm: 'LZX',
+    });
+
     const { files, totalBytes, timestamps } = await scanGameDirectory(game.installPath);
     if (files.length === 0) {
       activeJobs.delete(game.id);
@@ -170,59 +193,43 @@ export class WindowsCompressionEngine {
     let processedFiles = 0;
     let lastIpcTime = 0;
 
-    const cpuLimit = options?.cpuLimitPercentage || 30;
-    const CHUNK_SIZE = 50;
-
-    for (let i = 0; i < files.length; i += CHUNK_SIZE) {
+    for (const file of files) {
       if (isCancelled.has(game.id)) break;
 
-      const chunk = files.slice(i, i + CHUNK_SIZE);
-      const argsExe = ['/u', '/a', '/i', '/exe', ...chunk];
+      const argsExe = ['/u', '/a', '/i', '/exe', file];
 
-      await new Promise<void>((resolveChunk) => {
-        const proc = spawnThrottledCompact(argsExe, game.installPath, cpuLimit);
+      await new Promise<void>((resolveFile) => {
+        const proc = spawn('compact.exe', argsExe, { windowsHide: true });
         activeJobs.set(game.id, proc);
 
-        let buffer = '';
-        proc.stdout.on('data', (data: Buffer) => {
-          buffer += data.toString();
-          const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            if (trimmed.includes('[OK]') || trimmed.includes(':')) {
-              processedFiles++;
-              const percentage = Math.min(95, Math.round((processedFiles / totalFiles) * 100));
-              const now = Date.now();
-              if (now - lastIpcTime >= 100 || processedFiles === totalFiles) {
-                lastIpcTime = now;
-                onProgress({
-                  gameId: game.id,
-                  gameName: game.name,
-                  currentFile: trimmed.split(/\s+/)[0] || 'Uncompressing...',
-                  processedFiles,
-                  totalFiles,
-                  processedBytes: 0,
-                  totalBytes,
-                  savedBytes: 0,
-                  percentage,
-                  speedBytesPerSec: 0,
-                  estimatedRemainingSeconds: 0,
-                  status: 'decompressing',
-                  algorithm: 'LZX',
-                });
-              }
-            }
+        proc.on('close', () => {
+          processedFiles++;
+          const percentage = Math.min(95, Math.round((processedFiles / totalFiles) * 100));
+          const now = Date.now();
+          if (now - lastIpcTime >= 50 || processedFiles === totalFiles) {
+            lastIpcTime = now;
+            onProgress({
+              gameId: game.id,
+              gameName: game.name,
+              currentFile: path.basename(file),
+              processedFiles,
+              totalFiles,
+              processedBytes: 0,
+              totalBytes,
+              savedBytes: 0,
+              percentage,
+              speedBytesPerSec: 0,
+              estimatedRemainingSeconds: 0,
+              status: 'decompressing',
+              algorithm: 'LZX',
+            });
           }
+          resolveFile();
         });
-
-        proc.on('close', () => resolveChunk());
-        proc.on('error', () => resolveChunk());
+        proc.on('error', () => resolveFile());
       });
 
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 10));
     }
 
     if (isCancelled.has(game.id)) {
@@ -232,7 +239,7 @@ export class WindowsCompressionEngine {
     }
 
     await new Promise<void>((resolveFinal) => {
-      const proc2 = spawnThrottledCompact(['/u', '/s:' + game.installPath, '/a', '/i', '*'], game.installPath, cpuLimit);
+      const proc2 = spawn('compact.exe', ['/u', '/a', '/i', game.installPath], { windowsHide: true });
       proc2.on('close', () => resolveFinal());
       proc2.on('error', () => resolveFinal());
     });
