@@ -3,6 +3,8 @@ import { promisify } from 'util';
 import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress } from '../../renderer/src/types';
 import { calculateDirectorySize } from './size';
+import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
+import { ensureSteamManifestInstalled } from '../utils/steamManifest';
 
 const execAsync = promisify(exec);
 const activeJobs = new Map<string, ChildProcess>();
@@ -43,6 +45,9 @@ export class LinuxCompressionEngine {
         } catch {}
       }
 
+      // Capture timestamps
+      const savedTimestamps = captureDirectoryTimestamps(game.installPath);
+
       // Run recursive defragment with zstd compression at low priority
       return new Promise((resolve) => {
         const proc = spawn('btrfs', ['filesystem', 'defragment', '-r', '-czstd', game.installPath]);
@@ -72,6 +77,16 @@ export class LinuxCompressionEngine {
         proc.on('close', (code) => {
           activeJobs.delete(game.id);
           if (code === 0) {
+            try {
+              restoreDirectoryTimestamps(savedTimestamps);
+            } catch {}
+
+            if (game.platform === 'steam') {
+              try {
+                ensureSteamManifestInstalled(game.installPath, game.appId);
+              } catch {}
+            }
+
             onProgress({
               gameId: game.id,
               gameName: game.name,

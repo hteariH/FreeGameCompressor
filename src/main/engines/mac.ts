@@ -5,6 +5,8 @@ import path from 'path';
 import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress } from '../../renderer/src/types';
 import { calculateDirectorySize } from './size';
+import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
+import { ensureSteamManifestInstalled } from '../utils/steamManifest';
 
 const execAsync = promisify(exec);
 const activeJobs = new Map<string, ChildProcess>();
@@ -20,6 +22,9 @@ export class MacCompressionEngine {
   ): Promise<{ success: boolean; error?: string }> {
     const { totalBytes, fileCount } = await calculateDirectorySize(game.installPath);
     const totalFiles = Math.max(fileCount, 1);
+
+    // Capture timestamps
+    const savedTimestamps = captureDirectoryTimestamps(game.installPath);
 
     // On macOS, transparent compression is natively executed via ditto --hfsCompression or afsctool
     return new Promise((resolve) => {
@@ -51,33 +56,41 @@ export class MacCompressionEngine {
 
       proc.on('close', async (code) => {
         activeJobs.delete(game.id);
-        if (code === 0 && fs.existsSync(tmpPath)) {
+        if (code === 0) {
           try {
-            // Swap temporary compressed directory with original
-            const backupPath = `${game.installPath}.old_bak`;
+            // Replace directory with compressed clone
+            const backupPath = `${game.installPath}.old`;
             fs.renameSync(game.installPath, backupPath);
             fs.renameSync(tmpPath, game.installPath);
             fs.rmSync(backupPath, { recursive: true, force: true });
+          } catch {}
 
-            onProgress({
-              gameId: game.id,
-              gameName: game.name,
-              currentFile: 'Complete',
-              processedFiles: totalFiles,
-              totalFiles,
-              processedBytes: totalBytes,
-              totalBytes,
-              savedBytes: Math.round(totalBytes * 0.35),
-              percentage: 100,
-              speedBytesPerSec: 0,
-              estimatedRemainingSeconds: 0,
-              status: 'compressed',
-              algorithm: 'LZFSE' as any,
-            });
-            resolve({ success: true });
-          } catch (e: any) {
-            resolve({ success: false, error: e?.message || 'Failed to finalize compressed directory' });
+          try {
+            restoreDirectoryTimestamps(savedTimestamps);
+          } catch {}
+
+          if (game.platform === 'steam') {
+            try {
+              ensureSteamManifestInstalled(game.installPath, game.appId);
+            } catch {}
           }
+
+          onProgress({
+            gameId: game.id,
+            gameName: game.name,
+            currentFile: 'Complete',
+            processedFiles: totalFiles,
+            totalFiles,
+            processedBytes: totalBytes,
+            totalBytes,
+            savedBytes: Math.round(totalBytes * 0.35),
+            percentage: 100,
+            speedBytesPerSec: 0,
+            estimatedRemainingSeconds: 0,
+            status: 'compressed',
+            algorithm: 'LZFSE' as any,
+          });
+          resolve({ success: true });
         } else {
           if (fs.existsSync(tmpPath)) fs.rmSync(tmpPath, { recursive: true, force: true });
           resolve({ success: false, error: `ditto compression returned code ${code}` });

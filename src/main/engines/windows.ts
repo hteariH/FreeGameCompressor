@@ -3,6 +3,8 @@ import path from 'path';
 import os from 'os';
 import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorithm } from '../../renderer/src/types';
 import { calculateDirectorySize, getCompressionStats } from './size';
+import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
+import { ensureSteamManifestInstalled } from '../utils/steamManifest';
 
 const activeJobs = new Map<string, ChildProcess>();
 
@@ -28,6 +30,9 @@ export class WindowsCompressionEngine {
     let lastTime = startTime;
     let bytesSinceLast = 0;
     let speedBytesPerSec = 0;
+
+    // Capture exact file timestamps before compression to prevent Steam/Epic from detecting date changes
+    const savedTimestamps = captureDirectoryTimestamps(game.installPath);
 
     // Build compact.exe arguments
     // /c : Compress
@@ -116,6 +121,18 @@ export class WindowsCompressionEngine {
         activeJobs.delete(game.id);
 
         if (code === 0 || code === null) {
+          // Restore exact timestamps so Steam, Epic & launchers see ZERO file changes
+          try {
+            restoreDirectoryTimestamps(savedTimestamps);
+          } catch {}
+
+          // Ensure Steam manifest state remains Fully Installed (StateFlags 4)
+          if (game.platform === 'steam') {
+            try {
+              ensureSteamManifestInstalled(game.installPath, game.appId);
+            } catch {}
+          }
+
           // Send 100% completed progress
           onProgress({
             gameId: game.id,
@@ -174,8 +191,8 @@ export class WindowsCompressionEngine {
     const totalFiles = Math.max(fileCount, 1);
     let processedFiles = 0;
 
-    // First decompress WOF executables / files
-    const argsExe = ['/u', `/s:${game.installPath}`, '/a', '/i', '/exe', '*'];
+    // Capture exact file timestamps before decompression
+    const savedTimestamps = captureDirectoryTimestamps(game.installPath);
 
     return new Promise((resolve) => {
       const proc = spawn('compact.exe', argsExe, {
@@ -237,6 +254,16 @@ export class WindowsCompressionEngine {
             } catch {}
           }
           proc2.on('close', () => {
+            try {
+              restoreDirectoryTimestamps(savedTimestamps);
+            } catch {}
+
+            if (game.platform === 'steam') {
+              try {
+                ensureSteamManifestInstalled(game.installPath, game.appId);
+              } catch {}
+            }
+
             onProgress({
               gameId: game.id,
               gameName: game.name,
