@@ -79,6 +79,7 @@ export interface AppSettings {
   customScanPaths: string[];
   enabledPlatforms: Record<Platform, boolean>;
   concurrentJobs: number;
+  cpuLimitPercentage: number; // e.g. 30 (Wi-Fi safe), 50 (balanced), 100 (turbo)
   theme: 'dark' | 'midnight' | 'cyberpunk';
   autoScanOnStartup: boolean;
   notifyOnComplete: boolean;
@@ -90,6 +91,7 @@ export interface AppSettings {
 export interface CompressionOptions {
   algorithm: CompressionAlgorithm;
   skipMediaFiles?: boolean;
+  cpuLimitPercentage?: number;
 }
 
 export interface ElectronAPI {

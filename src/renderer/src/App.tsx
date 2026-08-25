@@ -39,6 +39,7 @@ export const App: React.FC = () => {
       custom: true,
     },
     concurrentJobs: 1,
+    cpuLimitPercentage: 30,
     theme: 'dark',
     autoScanOnStartup: true,
     notifyOnComplete: true,

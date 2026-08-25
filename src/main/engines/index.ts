@@ -24,10 +24,11 @@ export class CompressionEngineManager {
 
   public async decompress(
     game: Game,
-    onProgress: (progress: CompressionProgress) => void
+    onProgress: (progress: CompressionProgress) => void,
+    options?: CompressionOptions
   ): Promise<{ success: boolean; error?: string }> {
     if (process.platform === 'win32') {
-      return this.windowsEngine.decompress(game, onProgress);
+      return this.windowsEngine.decompress(game, onProgress, options);
     } else if (process.platform === 'darwin') {
       return this.macEngine.decompress(game, onProgress);
     } else {

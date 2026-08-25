@@ -44,14 +44,16 @@ export class WindowsCompressionEngine {
     // /exe:<algo> : WOF algorithm (XPRESS4K, XPRESS8K, XPRESS16K, LZX)
     const args = ['/c', `/s:${game.installPath}`, '/a', '/i', '/f', `/exe:${algorithm}`, '*'];
 
+    const cpuLimit = options.cpuLimitPercentage || 30;
+
     return new Promise((resolve) => {
-      // Spawn compact.exe with hidden window, low priority and affinity mask (free Core 0 for Wi-Fi / OS)
+      // Spawn compact.exe with hidden window, low priority and affinity mask (free Cores 0 & 1 for Wi-Fi / OS)
       const proc = spawn('compact.exe', args, {
         cwd: game.installPath,
         windowsHide: true,
       });
 
-      setProcessLowPriorityAndAffinity(proc.pid);
+      setProcessLowPriorityAndAffinity(proc.pid, cpuLimit);
 
       activeJobs.set(game.id, proc);
 
@@ -182,7 +184,8 @@ export class WindowsCompressionEngine {
    */
   public async decompress(
     game: Game,
-    onProgress: (progress: CompressionProgress) => void
+    onProgress: (progress: CompressionProgress) => void,
+    options?: CompressionOptions
   ): Promise<{ success: boolean; error?: string }> {
     const { totalBytes, fileCount } = await calculateDirectorySize(game.installPath);
     const totalFiles = Math.max(fileCount, 1);
@@ -193,6 +196,7 @@ export class WindowsCompressionEngine {
 
     // Decompress WOF and NTFS compressed files
     const argsExe = ['/u', `/s:${game.installPath}`, '/a', '/i', '/exe', '*'];
+    const cpuLimit = options?.cpuLimitPercentage || 30;
 
     return new Promise((resolve) => {
       const proc = spawn('compact.exe', argsExe, {
@@ -200,7 +204,7 @@ export class WindowsCompressionEngine {
         windowsHide: true,
       });
 
-      setProcessLowPriorityAndAffinity(proc.pid);
+      setProcessLowPriorityAndAffinity(proc.pid, cpuLimit);
 
       activeJobs.set(game.id, proc);
 

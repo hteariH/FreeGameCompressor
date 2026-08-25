@@ -8,7 +8,10 @@ import {
   Cpu, 
   Layers, 
   FolderSearch,
-  HardDrive
+  HardDrive,
+  Wifi,
+  ShieldCheck,
+  Zap
 } from 'lucide-react';
 import type { AppSettings, Platform, CompressionAlgorithm } from '../types';
 
@@ -100,6 +103,74 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <option value="XPRESS8K">XPRESS 8K (Fast)</option>
               <option value="XPRESS4K">XPRESS 4K (Ultra Fast, Zero CPU Overhead)</option>
             </select>
+          </div>
+
+          {/* CPU & Wi-Fi Protection Mode */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <Wifi className="w-4 h-4 text-emerald-400" /> CPU Load & Wi-Fi Stability Limit
+              </label>
+              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                {currentSettings.cpuLimitPercentage || 30}% Max Load
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentSettings(prev => ({ ...prev, cpuLimitPercentage: 30 }))}
+                className={`p-3 rounded-2xl border text-left transition-all ${
+                  (currentSettings.cpuLimitPercentage || 30) === 30
+                    ? 'bg-emerald-500/15 border-emerald-500/50 shadow-md shadow-emerald-500/10'
+                    : 'bg-surface-elevated/40 border-border hover:bg-surface-elevated text-slate-400'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 mb-1">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>30% (Wi-Fi Safe)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  Cores 0 & 1 untouched. Zero Wi-Fi drops & completely silent fans.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentSettings(prev => ({ ...prev, cpuLimitPercentage: 50 }))}
+                className={`p-3 rounded-2xl border text-left transition-all ${
+                  currentSettings.cpuLimitPercentage === 50
+                    ? 'bg-primary/15 border-primary/50 shadow-md shadow-primary/10'
+                    : 'bg-surface-elevated/40 border-border hover:bg-surface-elevated text-slate-400'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+                  <Cpu className="w-3.5 h-3.5" />
+                  <span>50% (Balanced)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  Uses half of CPU cores for balanced speed and responsiveness.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentSettings(prev => ({ ...prev, cpuLimitPercentage: 100 }))}
+                className={`p-3 rounded-2xl border text-left transition-all ${
+                  currentSettings.cpuLimitPercentage === 100
+                    ? 'bg-amber-500/15 border-amber-500/50 shadow-md shadow-amber-500/10'
+                    : 'bg-surface-elevated/40 border-border hover:bg-surface-elevated text-slate-400'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 mb-1">
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>100% (Turbo)</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  Max multi-threading speed. Recommended for wired Ethernet.
+                </p>
+              </button>
+            </div>
           </div>
 
           {/* Enabled Platforms */}

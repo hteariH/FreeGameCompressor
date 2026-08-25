@@ -40,6 +40,7 @@ const defaultSettings: AppSettings = {
     custom: true,
   },
   concurrentJobs: 1,
+  cpuLimitPercentage: 30, // 30% CPU load (Wi-Fi safe mode)
   theme: 'dark',
   autoScanOnStartup: true,
   notifyOnComplete: true,
@@ -226,7 +227,13 @@ ipcMain.handle('launch-game', async (_event, game: Game) => {
 });
 
 ipcMain.handle('compress-game', async (_event, game: Game, options: CompressionOptions) => {
-  const result = await engineManager.compress(game, options, (progress: CompressionProgress) => {
+  const currentSettings = loadSettings();
+  const mergedOptions: CompressionOptions = {
+    ...options,
+    cpuLimitPercentage: options?.cpuLimitPercentage || currentSettings.cpuLimitPercentage || 30,
+  };
+
+  const result = await engineManager.compress(game, mergedOptions, (progress: CompressionProgress) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('compression-progress', progress);
     }
@@ -234,7 +241,6 @@ ipcMain.handle('compress-game', async (_event, game: Game, options: CompressionO
 
   // Submit anonymous crowdsourced compression report if user opted in
   if (result.success) {
-    const currentSettings = loadSettings();
     if (currentSettings.shareAnonymousStats) {
       // Calculate actual post-compression disk space stats
       getCompressionStats(game.installPath).then((stats) => {
@@ -263,11 +269,17 @@ ipcMain.handle('compress-game', async (_event, game: Game, options: CompressionO
 });
 
 ipcMain.handle('decompress-game', async (_event, game: Game) => {
+  const currentSettings = loadSettings();
+  const decompressOptions: CompressionOptions = {
+    algorithm: 'LZX',
+    cpuLimitPercentage: currentSettings.cpuLimitPercentage || 30,
+  };
+
   return await engineManager.decompress(game, (progress: CompressionProgress) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('compression-progress', progress);
     }
-  });
+  }, decompressOptions);
 });
 
 ipcMain.handle('cancel-compression', (_event, gameId: string) => {
