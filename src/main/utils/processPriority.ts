@@ -2,64 +2,84 @@ import { execSync } from 'child_process';
 import os from 'os';
 
 /**
- * Calculates the CPU affinity mask for a given cpuLimitPercentage.
- * Always skips Cores 0 and 1 (reserved for Wi-Fi NDIS drivers and OS interrupts).
- * Returns the mask as a hex string (e.g. "0x3C") suitable for cmd.exe `start /affinity`.
- */
-export function calculateAffinityHex(cpuLimitPercentage: number = 30): string {
-  const coreCount = os.cpus().length;
-
-  if (coreCount < 4) {
-    // On 2-core machines, we can't skip cores — use all but set low priority
-    return ((1 << coreCount) - 1).toString(16).toUpperCase();
-  }
-
-  // Calculate how many cores to use based on percentage (min 1 core)
-  const usableCores = coreCount - 2; // exclude cores 0 & 1
-  const targetCores = Math.max(1, Math.round((cpuLimitPercentage / 100) * coreCount));
-  const coresToUse = Math.min(targetCores, usableCores);
-
-  // Build bitmask starting from core 2
-  let mask = 0n;
-  for (let i = 2; i < 2 + coresToUse && i < coreCount; i++) {
-    mask |= (1n << BigInt(i));
-  }
-
-  // Fallback: at least use core 2
-  if (mask === 0n) mask = 4n; // core 2 only
-
-  return mask.toString(16).toUpperCase();
-}
-
-/**
- * Enables Windows PROCESS_MODE_BACKGROUND_BEGIN on a process.
- * This drops I/O priority to VERY_LOW and memory priority to VERY_LOW,
- * preventing disk I/O storms from saturating the PCIe bus and killing Wi-Fi.
+ * Immediately throttles a process for Wi-Fi-safe compression:
  * 
- * This is the key fix: CPU affinity alone doesn't help because the I/O bandwidth
- * from NVMe SSD read/write saturates the shared PCIe root complex that the 
- * Wi-Fi adapter also uses (Intel CNVi, USB-attached adapters, etc).
+ * 1. Sets CPU scheduling priority to IDLE (instant, ~1μs via libuv/uv_os_setpriority)
+ * 2. Sets CPU core affinity (skips Cores 0 & 1, caps to cpuLimitPercentage of cores)
+ * 3. Enables PROCESS_MODE_BACKGROUND_BEGIN which sets:
+ *    - I/O Priority → VERY_LOW (prevents NVMe SSD from saturating shared PCIe bus)
+ *    - Memory Priority → VERY_LOW (prevents cache eviction of Wi-Fi driver pages)
+ *    - CPU Priority → Idle
+ * 
+ * Step 3 is THE critical fix for Wi-Fi drops. On laptops, the NVMe SSD and Wi-Fi
+ * adapter share the same PCIe root complex (Intel CNVi, USB-attached adapters).
+ * Without Background I/O Mode, compact.exe generates 3-7 GB/s of disk I/O that
+ * saturates the bus and starves the Wi-Fi driver of DMA bandwidth, causing
+ * beacon timeouts and adapter disconnection.
  */
-export function enableBackgroundMode(pid: number): void {
-  if (process.platform !== 'win32' || !pid) return;
+export function throttleProcess(pid: number | undefined, cpuLimitPercentage: number = 30): void {
+  if (!pid) return;
 
+  // Step 1: Instant CPU priority drop (synchronous, ~1μs, no PowerShell overhead)
   try {
-    // Use .NET interop to call SetPriorityClass with PROCESS_MODE_BACKGROUND_BEGIN (0x00100000)
-    // This sets: CPU=Idle, I/O=VeryLow, Memory=VeryLow — the trifecta for Wi-Fi safety
+    os.setPriority(pid, os.constants.priority.PRIORITY_LOW);
+  } catch {}
+
+  if (process.platform !== 'win32') return;
+
+  // Step 2 + 3: Set affinity AND enable Background I/O Mode in a single PowerShell call
+  // This minimizes the throttling delay to one PowerShell invocation (~200ms)
+  try {
+    const coreCount = os.cpus().length;
+    let affinityCmd = '';
+
+    if (coreCount >= 4) {
+      // Calculate how many cores to use based on percentage (min 1 core)
+      const usableCores = coreCount - 2; // exclude cores 0 & 1
+      const targetCores = Math.max(1, Math.round((cpuLimitPercentage / 100) * coreCount));
+      const coresToUse = Math.min(targetCores, usableCores);
+
+      // Build bitmask starting from core 2
+      let mask = 0n;
+      for (let i = 2; i < 2 + coresToUse && i < coreCount; i++) {
+        mask |= (1n << BigInt(i));
+      }
+      if (mask === 0n) mask = 4n; // fallback: core 2 only
+
+      affinityCmd = `$p.ProcessorAffinity = ${mask.toString()}; `;
+    }
+
+    // Combined: set affinity + enable PROCESS_MODE_BACKGROUND_BEGIN (0x00100000)
+    // Background mode sets I/O priority to VeryLow AND memory priority to VeryLow
     execSync(
       `powershell -NoProfile -NonInteractive -Command "` +
-      `$p = [System.Diagnostics.Process]::GetProcessById(${pid}); ` +
-      `$p.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::Idle; ` +
-      `$handle = $p.Handle; ` +
-      `$code = Add-Type -MemberDefinition '` +
-        `[DllImport(\\\"kernel32.dll\\\")] public static extern bool SetPriorityClass(IntPtr h, uint c);` +
-      `' -Name W -Namespace K -PassThru; ` +
-      `$code::SetPriorityClass($handle, 0x00100000)` +
-      `"`,
+      `$p = Get-Process -Id ${pid} -EA SilentlyContinue; ` +
+      `if($p) { ` +
+        `$p.PriorityClass = 'Idle'; ` +
+        affinityCmd +
+        `Add-Type -MemberDefinition '[DllImport(\\\"kernel32.dll\\\")] public static extern bool SetPriorityClass(IntPtr h, uint c);' -Name BG -Namespace K -EA SilentlyContinue; ` +
+        `[K.BG]::SetPriorityClass($p.Handle, 0x00100000) ` +
+      `}"`,
       { timeout: 3000, stdio: 'ignore' }
     );
   } catch {
-    // Fallback: at least set Idle priority via Node.js API
-    try { os.setPriority(pid, os.constants.priority.PRIORITY_LOW); } catch {}
+    // Fallback: at least try affinity alone
+    try {
+      const coreCount = os.cpus().length;
+      if (coreCount >= 4) {
+        const usableCores = coreCount - 2;
+        const targetCores = Math.max(1, Math.round((cpuLimitPercentage / 100) * coreCount));
+        const coresToUse = Math.min(targetCores, usableCores);
+        let mask = 0n;
+        for (let i = 2; i < 2 + coresToUse && i < coreCount; i++) {
+          mask |= (1n << BigInt(i));
+        }
+        if (mask === 0n) mask = 4n;
+        execSync(
+          `powershell -NoProfile -NonInteractive -Command "(Get-Process -Id ${pid} -EA SilentlyContinue).ProcessorAffinity = ${mask.toString()}"`,
+          { timeout: 1500, stdio: 'ignore' }
+        );
+      }
+    } catch {}
   }
 }

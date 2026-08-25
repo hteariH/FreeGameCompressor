@@ -5,66 +5,9 @@ import type { Game, CompressionOptions, CompressionProgress, CompressionAlgorith
 import { calculateDirectorySize, getCompressionStats } from './size';
 import { captureDirectoryTimestamps, restoreDirectoryTimestamps } from '../utils/timestamps';
 import { ensureSteamManifestInstalled } from '../utils/steamManifest';
-import { calculateAffinityHex, enableBackgroundMode } from '../utils/processPriority';
+import { throttleProcess } from '../utils/processPriority';
 
 const activeJobs = new Map<string, ChildProcess>();
-
-/**
- * Spawns compact.exe via `cmd /c start /low /affinity <mask> /b /wait compact.exe <args>`.
- * 
- * This is the ONLY correct way to prevent Wi-Fi drops:
- * - /low: Sets IDLE_PRIORITY_CLASS *before* compact.exe executes its first instruction.
- * - /affinity <mask>: Sets CPU core mask *before* first instruction (zero race condition).
- * - /b: No new window (stays in background).
- * - /wait: cmd.exe waits for compact.exe to exit (proper exit code propagation).
- * 
- * After spawning, enableBackgroundMode() sets PROCESS_MODE_BACKGROUND_BEGIN which
- * drops I/O priority to VERY_LOW — this is crucial because on laptops the NVMe SSD
- * and Wi-Fi adapter share the same PCIe root complex, and heavy disk I/O saturates
- * the bus causing Wi-Fi driver DPC timeouts.
- */
-function spawnThrottledCompact(
-  args: string[],
-  cwd: string,
-  cpuLimitPercentage: number
-): ChildProcess {
-  const affinityHex = calculateAffinityHex(cpuLimitPercentage);
-  
-  // Build the command: cmd /c start /low /affinity <hex> /b /wait compact.exe <args>
-  // The compact.exe arguments are joined and passed as a single string after the exe name
-  const compactArgStr = args.map(a => a.includes(' ') ? `"${a}"` : a).join(' ');
-  
-  const proc = spawn('cmd.exe', [
-    '/c',
-    `start /low /affinity 0x${affinityHex} /b /wait compact.exe ${compactArgStr}`
-  ], {
-    cwd,
-    windowsHide: true,
-    shell: false,
-  });
-
-  // After spawn, also enable Background I/O Mode on all child compact.exe processes
-  // This throttles I/O priority to VERY_LOW, preventing PCIe bus saturation
-  setTimeout(() => {
-    try {
-      // Find the actual compact.exe PID spawned by cmd.exe and apply background mode
-      const { execSync } = require('child_process');
-      const output = execSync(
-        `wmic process where "name='compact.exe' and ParentProcessId=${proc.pid}" get ProcessId /format:value`,
-        { timeout: 2000, encoding: 'utf-8' }
-      );
-      const pidMatch = output.match(/ProcessId=(\d+)/);
-      if (pidMatch) {
-        enableBackgroundMode(parseInt(pidMatch[1], 10));
-      }
-    } catch {
-      // If we can't find compact.exe child, apply to cmd.exe parent instead
-      if (proc.pid) enableBackgroundMode(proc.pid);
-    }
-  }, 300);
-
-  return proc;
-}
 
 export class WindowsCompressionEngine {
   /**
@@ -104,8 +47,14 @@ export class WindowsCompressionEngine {
     const cpuLimit = options.cpuLimitPercentage || 30;
 
     return new Promise((resolve) => {
-      // Spawn compact.exe pre-throttled: CPU affinity + low priority applied BEFORE first instruction
-      const proc = spawnThrottledCompact(args, game.installPath, cpuLimit);
+      const proc = spawn('compact.exe', args, {
+        cwd: game.installPath,
+        windowsHide: true,
+      });
+
+      // Immediately throttle: set CPU priority to IDLE (instant, ~1μs via libuv),
+      // then set CPU affinity + Background I/O Mode (VERY_LOW disk priority)
+      throttleProcess(proc.pid, cpuLimit);
 
       activeJobs.set(game.id, proc);
 
@@ -251,7 +200,12 @@ export class WindowsCompressionEngine {
     const cpuLimit = options?.cpuLimitPercentage || 30;
 
     return new Promise((resolve) => {
-      const proc = spawnThrottledCompact(argsExe, game.installPath, cpuLimit);
+      const proc = spawn('compact.exe', argsExe, {
+        cwd: game.installPath,
+        windowsHide: true,
+      });
+
+      throttleProcess(proc.pid, cpuLimit);
 
       activeJobs.set(game.id, proc);
 
@@ -291,11 +245,11 @@ export class WindowsCompressionEngine {
         activeJobs.delete(game.id);
         // Also run standard uncompress flag to remove any NTFS directory marks
         try {
-          const proc2 = spawnThrottledCompact(
-            ['/u', `/s:${game.installPath}`, '/a', '/i', '*'],
-            game.installPath,
-            cpuLimit
-          );
+          const proc2 = spawn('compact.exe', ['/u', `/s:${game.installPath}`, '/a', '/i', '*'], {
+            cwd: game.installPath,
+            windowsHide: true,
+          });
+          throttleProcess(proc2.pid, cpuLimit);
           proc2.on('close', () => {
             try {
               restoreDirectoryTimestamps(savedTimestamps);
@@ -343,7 +297,7 @@ export class WindowsCompressionEngine {
     const proc = activeJobs.get(gameId);
     if (proc && !proc.killed) {
       try {
-        // Kill process tree on Windows (kills cmd.exe + compact.exe)
+        // Kill process tree on Windows
         spawn('taskkill', ['/pid', proc.pid?.toString() || '', '/f', '/t']);
       } catch {
         proc.kill('SIGKILL');
