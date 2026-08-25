@@ -38,6 +38,8 @@ class ThrottledLauncher {
     [DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr h, out uint code);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
     [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int n);
+    [DllImport("ntdll.dll")] static extern int NtSuspendProcess(IntPtr processHandle);
+    [DllImport("ntdll.dll")] static extern int NtResumeProcess(IntPtr processHandle);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct STARTUPINFOW {
@@ -53,17 +55,17 @@ class ThrottledLauncher {
     }
 
     static int Main(string[] args) {
-        if (args.Length < 2) { Console.Error.WriteLine("Usage: throttle.exe <mask> <cmd> [args]"); return 1; }
+        if (args.Length < 3) { Console.Error.WriteLine("Usage: throttle.exe <mask> <cpuLimit> <cmd> [args]"); return 1; }
 
         ulong mask = ulong.Parse(args[0]);
-        string[] cmdParts = new string[args.Length - 1];
-        for (int i = 1; i < args.Length; i++) {
+        int cpuLimit = int.Parse(args[1]);
+        string[] cmdParts = new string[args.Length - 2];
+        for (int i = 2; i < args.Length; i++) {
             string arg = args[i];
-            // If argument contains spaces and isn't already quoted, wrap it in quotes
             if (arg.Contains(" ") && !arg.StartsWith("\"")) {
                 arg = "\"" + arg + "\"";
             }
-            cmdParts[i - 1] = arg;
+            cmdParts[i - 2] = arg;
         }
         string cmdLine = string.Join(" ", cmdParts);
 
@@ -90,12 +92,32 @@ class ThrottledLauncher {
         // 2. Set Background I/O Mode: I/O=VeryLow, Memory=VeryLow
         SetPriorityClass(pi.hProcess, 0x00100000);
 
-        // 3. NOW resume — compact.exe starts fully throttled
+        // 3. Initial resume
         ResumeThread(pi.hThread);
         CloseHandle(pi.hThread);
 
-        // Wait and return exit code
-        WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
+        // 4. ACTIVE DUTY CYCLE THROTTLING (The Ultimate Fix)
+        // If wof.sys is processing I/O in kernel threads, CPU Priority/Affinity on compact.exe
+        // won't stop it from saturating the PCIe bus.
+        // The ONLY way to throttle it is to actively suspend and resume the process,
+        // pausing its generation of I/O requests.
+        if (cpuLimit < 100) {
+            // Use a 50ms cycle to keep it smooth.
+            // 30% limit = 15ms run, 35ms sleep.
+            int runMs = Math.Max(5, (int)(cpuLimit * 0.5));
+            int sleepMs = Math.Max(5, (int)((100 - cpuLimit) * 0.5));
+
+            while (true) {
+                NtResumeProcess(pi.hProcess);
+                if (WaitForSingleObject(pi.hProcess, (uint)runMs) != 0x00000103) break; // Exited!
+                
+                NtSuspendProcess(pi.hProcess);
+                System.Threading.Thread.Sleep(sleepMs);
+            }
+        } else {
+            WaitForSingleObject(pi.hProcess, 0xFFFFFFFF);
+        }
+
         uint exitCode; GetExitCodeProcess(pi.hProcess, out exitCode);
         CloseHandle(pi.hProcess);
         return (int)exitCode;
@@ -128,7 +150,7 @@ function findCsc(): string | null {
 function ensureLauncher(): string | null {
   if (cachedLauncherPath && fs.existsSync(cachedLauncherPath)) return cachedLauncherPath;
 
-  const cacheDir = path.join(os.tmpdir(), 'fgc-throttle-v2');
+  const cacheDir = path.join(os.tmpdir(), 'fgc-throttle-v3');
   const exePath = path.join(cacheDir, 'throttle_launcher.exe');
   const srcPath = path.join(cacheDir, 'throttle_launcher.cs');
 
@@ -199,7 +221,7 @@ export function spawnThrottledCompact(
   if (launcher) {
     // Use the native launcher: compact.exe is created SUSPENDED and throttled
     // before executing its first instruction
-    const proc = spawn(launcher, [mask.toString(), 'compact.exe', ...args], {
+    const proc = spawn(launcher, [mask.toString(), cpuLimitPercentage.toString(), 'compact.exe', ...args], {
       cwd,
       windowsHide: true,
     });
