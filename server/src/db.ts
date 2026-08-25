@@ -50,39 +50,6 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_submissions_game_id ON submissions(game_id);
     CREATE INDEX IF NOT EXISTS idx_submissions_app_id ON submissions(app_id);
   `);
-
-  seedInitialData();
-}
-
-/**
- * Seed initial estimated statistics for top popular games
- */
-function seedInitialData() {
-  const count = db.prepare('SELECT COUNT(*) as count FROM game_stats').get() as { count: number };
-  if (count.count > 0) return;
-
-  const initialGames = [
-    { id: 'steam-1091500', name: 'Cyberpunk 2077', appId: '1091500', uncomp: 85 * 1e9, comp: 52 * 1e9, ratio: 1.63, algo: 'LZX' },
-    { id: 'steam-1086940', name: "Baldur's Gate 3", appId: '1086940', uncomp: 145 * 1e9, comp: 98 * 1e9, ratio: 1.48, algo: 'LZX' },
-    { id: 'steam-1172470', name: 'Apex Legends', appId: '1172470', uncomp: 81 * 1e9, comp: 56 * 1e9, ratio: 1.45, algo: 'LZX' },
-    { id: 'steam-553850', name: 'HELLDIVERS™ 2', appId: '553850', uncomp: 24 * 1e9, comp: 16 * 1e9, ratio: 1.50, algo: 'LZX' },
-    { id: 'steam-730', name: 'Counter-Strike 2', appId: '730', uncomp: 71 * 1e9, comp: 53 * 1e9, ratio: 1.34, algo: 'XPRESS16K' },
-    { id: 'steam-271590', name: 'Grand Theft Auto V', appId: '271590', uncomp: 110 * 1e9, comp: 74 * 1e9, ratio: 1.49, algo: 'LZX' },
-    { id: 'steam-1245620', name: 'ELDEN RING', appId: '1245620', uncomp: 60 * 1e9, comp: 44 * 1e9, ratio: 1.36, algo: 'LZX' },
-    { id: 'steam-1716740', name: 'Starfield', appId: '1716740', uncomp: 125 * 1e9, comp: 82 * 1e9, ratio: 1.52, algo: 'LZX' },
-    { id: 'steam-292030', name: 'The Witcher 3: Wild Hunt', appId: '292030', uncomp: 58 * 1e9, comp: 41 * 1e9, ratio: 1.41, algo: 'LZX' },
-    { id: 'steam-1172620', name: 'Sea of Thieves', appId: '1172620', uncomp: 95 * 1e9, comp: 61 * 1e9, ratio: 1.56, algo: 'LZX' },
-  ];
-
-  const insertStmt = db.prepare(`
-    INSERT INTO game_stats (game_id, game_name, app_id, platform, total_submissions, avg_uncompressed_bytes, avg_compressed_bytes, avg_saved_bytes, avg_ratio, best_algorithm)
-    VALUES (?, ?, ?, 'steam', 12, ?, ?, ?, ?, ?)
-  `);
-
-  for (const g of initialGames) {
-    const saved = g.uncomp - g.comp;
-    insertStmt.run(g.id, g.name, g.appId, g.uncomp, g.comp, saved, g.ratio, g.algo);
-  }
 }
 
 export interface CompressionReport {
