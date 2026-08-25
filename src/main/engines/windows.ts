@@ -191,6 +191,9 @@ export class WindowsCompressionEngine {
     // Capture exact file timestamps before decompression
     const savedTimestamps = captureDirectoryTimestamps(game.installPath);
 
+    // Decompress WOF and NTFS compressed files
+    const argsExe = ['/u', `/s:${game.installPath}`, '/a', '/i', '/exe', '*'];
+
     return new Promise((resolve) => {
       const proc = spawn('compact.exe', argsExe, {
         cwd: game.installPath,
