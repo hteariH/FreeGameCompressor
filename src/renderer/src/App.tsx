@@ -83,12 +83,6 @@ export const App: React.FC = () => {
         // Subscribe to compression progress events
         window.api.onCompressionProgress((progress: CompressionProgress) => {
           setActiveProgress(progress);
-          
-          // Update game status in list if finished
-          if (progress.status === 'compressed' || progress.status === 'uncompressed') {
-            refreshLibrary();
-            refreshDrives();
-          }
         });
       }
     };
@@ -165,8 +159,19 @@ export const App: React.FC = () => {
 
     try {
       await window.api.compressGame(game, { algorithm: algo, skipMediaFiles: skip });
+      
+      // Wait 2 seconds so user can see the 100% Complete status before it clears
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      await refreshLibrary();
+      await refreshDrives();
     } catch (err: any) {
       setActiveProgress(prev => prev ? { ...prev, status: 'error', error: err?.message || 'Compression error' } : null);
+      // Let error show for 4 seconds then clear
+      await new Promise(resolve => setTimeout(resolve, 4000));
+    } finally {
+      // Only clear if the current progress still belongs to this game (prevents wiping next game in batch)
+      setActiveProgress(prev => (prev && prev.gameId === game.id) ? null : prev);
     }
   };
 
@@ -191,8 +196,15 @@ export const App: React.FC = () => {
 
     try {
       await window.api.decompressGame(game);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await refreshLibrary();
+      await refreshDrives();
     } catch (err: any) {
       setActiveProgress(prev => prev ? { ...prev, status: 'error', error: err?.message || 'Decompression error' } : null);
+      await new Promise(resolve => setTimeout(resolve, 4000));
+    } finally {
+      setActiveProgress(prev => (prev && prev.gameId === game.id) ? null : prev);
     }
   };
 
