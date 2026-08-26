@@ -138,31 +138,43 @@ export async function getCompressionStats(dirPath: string): Promise<FolderSizeIn
 
   if (isWindows) {
     try {
-      // Run compact /q /s:"dirPath" * to get exact compressed vs uncompressed bytes
-      const { stdout } = await execAsync(`compact /q /s:"${dirPath}" *`, { maxBuffer: 10 * 1024 * 1024 });
+      // Run chcp 437 to force English output, so the regex matches on any language Windows
+      const { stdout } = await execAsync(`chcp 437 && compact /q /s:"${dirPath}" *`, { maxBuffer: 10 * 1024 * 1024 });
       
-      // Parse output:
-      // "12,345,678 total bytes of data are stored in 8,234,567 bytes."
-      // "The compression ratio is 1.5 to 1."
-      // "Of 120 files within 10 directories 110 are compressed and 10 are not compressed."
-      const bytesMatch = stdout.match(/([\d,]+)\s+total bytes of data are stored in\s+([\d,]+)\s+bytes/i);
-      const filesMatch = stdout.match(/Of\s+([\d,]+)\s+files within\s+([\d,]+)\s+directories\s+([\d,]+)\s+are compressed/i);
-      const ratioMatch = stdout.match(/compression ratio is\s+([\d\.]+)\s+to\s+1/i);
+      // Parse output language-agnostically by reading the last few lines
+      const lines = stdout.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length >= 4) {
+        // Last line: "The compression ratio is 1.5 to 1."
+        const ratioLine = lines[lines.length - 1];
+        // 2nd to last: "12,345,678 total bytes of data are stored in 8,234,567 bytes."
+        const bytesLine = lines[lines.length - 2];
+        // 3rd to last: "110 are compressed and 10 are not compressed."
+        const compressedLine = lines[lines.length - 3];
+        // 4th to last: "Of 120 files within 10 directories"
+        const filesLine = lines[lines.length - 4];
 
-      if (bytesMatch) {
-        const uncompressed = parseInt(bytesMatch[1].replace(/,/g, ''), 10);
-        const compressed = parseInt(bytesMatch[2].replace(/,/g, ''), 10);
-        const ratio = ratioMatch ? parseFloat(ratioMatch[1]) : (compressed > 0 ? uncompressed / compressed : 1.0);
-        const fileCount = filesMatch ? parseInt(filesMatch[1].replace(/,/g, ''), 10) : 0;
-        const compressedCount = filesMatch ? parseInt(filesMatch[3].replace(/,/g, ''), 10) : 0;
+        const extractNumbers = (str: string) => str.match(/\d+(?:[.,\s]\d+)*/g)?.map(n => parseInt(n.replace(/\D/g, ''), 10)) || [];
+        const bytesNums = extractNumbers(bytesLine);
+        const compNums = extractNumbers(compressedLine);
+        const filesNums = extractNumbers(filesLine);
 
-        return {
-          uncompressedSize: uncompressed,
-          compressedSize: compressed,
-          fileCount: fileCount,
-          isCompressed: compressedCount > 0 && compressed < uncompressed * 0.95,
-          compressionRatio: Math.max(1.0, parseFloat(ratio.toFixed(2))),
-        };
+        if (bytesNums.length >= 2) {
+          const uncompressed = bytesNums[0];
+          const compressed = bytesNums[1];
+          const fileCount = filesNums.length >= 1 ? filesNums[0] : 0;
+          const compressedCount = compNums.length >= 1 ? compNums[0] : 0;
+          
+          const ratioMatch = ratioLine.match(/(\d+[.,]\d+)/);
+          const parsedRatio = ratioMatch ? parseFloat(ratioMatch[1].replace(',', '.')) : (compressed > 0 ? uncompressed / compressed : 1.0);
+
+          return {
+            uncompressedSize: uncompressed,
+            compressedSize: compressed,
+            fileCount: fileCount,
+            isCompressed: compressedCount > 0 && compressed < uncompressed * 0.95,
+            compressionRatio: Math.max(1.0, parseFloat(parsedRatio.toFixed(2))),
+          };
+        }
       }
     } catch {
       // Compact query failed (or path has special chars), fallback to manual scan
