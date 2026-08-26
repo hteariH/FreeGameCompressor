@@ -90,7 +90,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ games, drives }) =
                 {/* Progress bar */}
                 <div className="w-full h-2 bg-surface-elevated rounded-full overflow-hidden flex border border-border">
                   <div 
-                    className="h-full bg-surface-elevated -500 -400 rounded-full transition-all duration-500"
+                    className="h-full bg-cyan-500 rounded-full transition-all duration-500"
                     style={{ width: `${usedPerc}%` }}
                   />
                 </div>

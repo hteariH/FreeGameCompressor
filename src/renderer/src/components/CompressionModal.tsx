@@ -104,7 +104,7 @@ export const CompressionModal: React.FC<CompressionModalProps> = ({
                     ? 'bg-rose-500'
                     : isCompleted
                     ? 'bg-emerald-500'
-                    : 'bg-surface-elevated -500 -400 -500 animate-pulse'
+                    : 'bg-cyan-500 animate-pulse'
                 }`}
                 style={{ width: `${progress.percentage}%` }}
               />
